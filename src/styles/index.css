@@ -358,7 +358,7 @@ body { min-height: 100vh; overflow-x: hidden; }
 
 /* Table */
 .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; overflow-y: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; }
 
 thead { background: var(--bg3); }
 th {

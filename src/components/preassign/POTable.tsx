@@ -50,6 +50,20 @@ export function POTable({
     <div>
       <div className="table-wrap">
         <table>
+          <colgroup>
+            <col style={{ width: 38 }} />   {/* checkbox */}
+            <col style={{ width: 142 }} />  {/* moovRef / LOT */}
+            <col style={{ width: 145 }} />  {/* article */}
+            <col style={{ width: 64 }} />   {/* POL */}
+            <col style={{ width: 64 }} />   {/* POD */}
+            <col style={{ width: 74 }} />   {/* TEU */}
+            <col style={{ width: 74 }} />   {/* CTR TYPE */}
+            <col style={{ width: 152 }} />  {/* CRD·FOB·LDD */}
+            <col style={{ width: 165 }} />  {/* CARRIER/VESSEL */}
+            <col style={{ width: 152 }} />  {/* ETD/ETA/PETA */}
+            <col style={{ width: 100 }} />  {/* STATUS */}
+            <col style={{ width: 56 }} />   {/* actions */}
+          </colgroup>
           <thead>
             <tr>
               <th className="col-check">
@@ -98,7 +112,7 @@ export function POTable({
                     <div className="po-sub font-mono font-semibold" style={{ color: 'var(--text1)', marginTop: 1 }}>{po.lot}</div>
                   </td>
                   {/* Article */}
-                  <td style={{ maxWidth: 220 }}>
+                  <td>
                     <div className="article-name">{po.article}</div>
                     <div className="po-sub">
                       {t(lang, 'table.ianSupplier', { ian: po.ian, supplier: po.supplier })}
