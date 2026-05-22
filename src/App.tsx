@@ -14,7 +14,7 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { AllocationManagement } from './components/allocation/AllocationManagement';
 import { ExceptionDashboard } from './components/exception/ExceptionDashboard';
 import { ResolveModal } from './components/exception/ResolveModal';
-import { MOCK_POS, BOOKING_MOCK_POS } from './data/mockData';
+import { MOCK_POS, BOOKING_MOCK_POS, DEMO_ALLOCATION_USAGE } from './data/mockData';
 import { INITIAL_ALLOCATION, EARLY_SHIPMENT_LOTS } from './data/referenceData';
 import { I18N, t } from './i18n';
 
@@ -326,6 +326,10 @@ function App() {
 
   const allocationUsage = useMemo(() => {
     const usage: Record<string, { preassign: number; booked: number }> = {};
+    // Merge demo seed baseline
+    for (const [k, v] of Object.entries(DEMO_ALLOCATION_USAGE)) {
+      usage[k] = { preassign: v.preassign, booked: v.booked };
+    }
     const accumulate = (p: PO, type: 'preassign' | 'booked') => {
       if (!p.etd || !p.carrier || !p.polRegion || !p.podRegion) return;
       const code = CARRIER_TO_CODE[p.carrier];

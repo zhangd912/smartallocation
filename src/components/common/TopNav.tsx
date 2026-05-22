@@ -73,15 +73,6 @@ export function TopNav({ lang, counts, toggleLang, activeTab, setActiveTab, acti
             </div>
           )}
         </div>
-        <button
-          className={`nav-tab ${activeTab === 'allocation' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('allocation');
-            setExpandedTab(null);
-          }}
-        >
-          <IconDatabase /> {t(lang, 'nav.allocationMgmt')}
-        </button>
         <div className="nav-tab-group">
           <button
             className={`nav-tab ${activeTab === 'booking' ? 'active' : ''}`}
@@ -118,6 +109,15 @@ export function TopNav({ lang, counts, toggleLang, activeTab, setActiveTab, acti
             </div>
           )}
         </div>
+        <button
+          className={`nav-tab ${activeTab === 'allocation' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('allocation');
+            setExpandedTab(null);
+          }}
+        >
+          <IconDatabase /> {t(lang, 'nav.allocationMgmt')}
+        </button>
       </div>
       <div className="topnav-right">
         <button className="topnav-icon-btn" title="Notifications">

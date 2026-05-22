@@ -71,6 +71,10 @@ export function AllocationManagement({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filterCarrier, setFilterCarrier] = useState('ALL');
+  const [filterMonth, setFilterMonth] = useState('ALL');
+  const [filterWeek, setFilterWeek] = useState('ALL');
+  const [bar2BaseState, setBar2BaseState] = useState<'initial' | 'available'>('available');
 
   const currentMatrix = bookingMatrixVersions.length > 0 ? bookingMatrixVersions[bookingMatrixVersions.length - 1].data : [];
   const currentFnd = fndRulesVersions.length > 0 ? fndRulesVersions[fndRulesVersions.length - 1].data : [];
@@ -462,76 +466,290 @@ export function AllocationManagement({
       )}
 
       {activeTab === 'quota' && (() => {
-        const DISPLAY_WEEKS = ['20/26','21/26','22/26','23/26','24/26','25/26','26/26','27/26','28/26'];
-        const CARRIER_LABEL: Record<string, string> = { HLCU: 'Hapag-Lloyd', CMDU: 'CMA CGM', TSHG: 'Tailwind', MSCU: 'MSC', MAEU: 'Maersk' };
-        // Derive unique rows from INITIAL_ALLOCATION keys
+        // Derive month→weeks mapping dynamically from available initialAllocation keys
+        const isoWeekToMonth = (weekStr: string): string => {
+          const [wPart, yPart] = weekStr.split('/');
+          const week = parseInt(wPart);
+          const year = 2000 + parseInt(yPart);
+          const jan4 = new Date(Date.UTC(year, 0, 4));
+          const dow = jan4.getUTCDay() || 7;
+          const monday = new Date(jan4);
+          monday.setUTCDate(jan4.getUTCDate() - dow + 1 + (week - 1) * 7);
+          const thursday = new Date(monday);
+          thursday.setUTCDate(monday.getUTCDate() + 3);
+          return thursday.toLocaleString('en-US', { month: 'short' });
+        };
+
+        const allAvailWeeks = Array.from(new Set(
+          Object.keys(initialAllocation).map(k => k.split('|')[3])
+        )).sort((a, b) => {
+          const [wa, ya] = a.split('/'); const [wb, yb] = b.split('/');
+          return (parseInt(ya) * 100 + parseInt(wa)) - (parseInt(yb) * 100 + parseInt(wb));
+        });
+
+        const MONTH_WEEKS: Record<string, string[]> = {};
+        const MONTHS: string[] = [];
+        allAvailWeeks.forEach(w => {
+          const m = isoWeekToMonth(w);
+          if (!MONTH_WEEKS[m]) { MONTH_WEEKS[m] = []; MONTHS.push(m); }
+          MONTH_WEEKS[m].push(w);
+        });
+        const CARRIER_LABEL: Record<string, string> = {
+          HLCU: 'Hapag-Lloyd', CMDU: 'CMA CGM', TSHG: 'Tailwind', MSCU: 'MSC', MAEU: 'Maersk',
+          COSU: 'COSCO', ONEY: 'ONE',
+        };
+
         const rowSet = new Set<string>();
         Object.keys(initialAllocation).forEach(k => {
           const parts = k.split('|');
           if (parts.length === 4) rowSet.add(`${parts[0]}|${parts[1]}|${parts[2]}`);
         });
-        const rows = Array.from(rowSet).sort();
-        const getCell = (rowKey: string, week: string) => {
+        const allRows = Array.from(rowSet).sort();
+        const allCarriers = Array.from(new Set(allRows.map(r => r.split('|')[0]))).sort();
+        const filteredRows = filterCarrier === 'ALL' ? allRows : allRows.filter(r => r.split('|')[0] === filterCarrier);
+
+        const viewLevel = filterMonth === 'ALL' ? 1 : filterWeek === 'ALL' ? 2 : 3;
+        const weekOptions = filterMonth !== 'ALL' ? MONTH_WEEKS[filterMonth] || [] : [];
+
+        const getWeekData = (rowKey: string, week: string) => {
           const allocKey = `${rowKey}|${week}`;
           const initial = initialAllocation[allocKey] || 0;
           const usage = allocationUsage[allocKey] || { preassign: 0, booked: 0 };
-          const consumed = usage.preassign + usage.booked;
-          const available = Math.max(0, initial - consumed);
-          return { initial, preassign: usage.preassign, booked: usage.booked, available };
+          const hardAvailable = Math.max(0, initial - usage.booked);
+          const preassignAvail = initial - usage.booked - usage.preassign;
+          return {
+            initial, preassign: usage.preassign, booked: usage.booked,
+            hardAvailable, preassignAvail,
+            isOvercommit: preassignAvail < 0,
+            healthPct: initial > 0 ? hardAvailable / initial : null,
+          };
         };
-        const cellColor = (available: number, initial: number) => {
-          if (initial === 0) return { bg: 'transparent', text: 'var(--text3)' };
-          const pct = available / initial;
-          if (pct >= 0.5) return { bg: '#D1FAE5', text: '#065F46' };
-          if (pct >= 0.2) return { bg: '#FEF3C7', text: '#92400E' };
+
+        const getAggData = (rowKey: string, weeks: string[]) => {
+          let initial = 0, preassign = 0, booked = 0;
+          weeks.forEach(w => {
+            const d = getWeekData(rowKey, w);
+            initial += d.initial; preassign += d.preassign; booked += d.booked;
+          });
+          const hardAvailable = Math.max(0, initial - booked);
+          const preassignAvail = initial - booked - preassign;
+          return {
+            initial, preassign, booked, hardAvailable, preassignAvail,
+            isOvercommit: preassignAvail < 0,
+            healthPct: initial > 0 ? hardAvailable / initial : null,
+          };
+        };
+
+        const heatColor = (healthPct: number | null) => {
+          if (healthPct === null) return { bg: 'transparent', text: 'var(--text3)' };
+          if (healthPct >= 0.5) return { bg: '#D1FAE5', text: '#065F46' };
+          if (healthPct >= 0.2) return { bg: '#FEF3C7', text: '#92400E' };
           return { bg: '#FEE2E2', text: '#991B1B' };
         };
+
+        type CellData = ReturnType<typeof getWeekData>;
+
+        const mkTooltip = (label: string, d: CellData) =>
+          `${label}\n──────────────────────\nInitial quota     ${d.initial} TEU\nCarrier Booking   ${d.booked} TEU\nAvailable         ${d.hardAvailable} TEU\nPre-assign        ${d.preassign} TEU\nPre-assign Avail  ${d.preassignAvail} TEU${d.isOvercommit ? '  ⚠ Overcommit' : ''}`;
+
+        const renderHeatCell = (d: CellData, tt: string) => {
+          if (d.initial === 0) return <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>;
+          const colors = d.isOvercommit ? { bg: '#FEE2E2', text: '#991B1B' } : heatColor(d.healthPct);
+          return (
+            <div
+              style={{ background: colors.bg, color: colors.text, borderRadius: 5, padding: '3px 8px', fontSize: 11, fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'default', minWidth: 70 }}
+              title={tt}
+            >
+              <span>{d.hardAvailable}</span>
+              <span style={{ opacity: 0.5, fontSize: 10 }}>/{d.initial}</span>
+              {d.isOvercommit && <span style={{ fontSize: 9, fontWeight: 700, color: '#DC2626', marginLeft: 2 }}>⚠OC</span>}
+            </div>
+          );
+        };
+
+        const renderDualBars = (rowKey: string, week: string) => {
+          const d = getWeekData(rowKey, week);
+          if (d.initial === 0) return <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>;
+          const bookedPct = d.initial > 0 ? Math.min(100, (d.booked / d.initial) * 100) : 0;
+          const base2 = bar2BaseState === 'available' ? d.hardAvailable : d.initial;
+          const preassignPct = d.isOvercommit ? 100 : (base2 > 0 ? Math.min(100, (d.preassign / base2) * 100) : 0);
+          return (
+            <div style={{ padding: '6px 0', minWidth: 260 }}>
+              {/* Bar 1: Carrier Booking vs initial */}
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>Carrier Booking vs Initial quota</div>
+                <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden', background: '#E5E7EB' }}>
+                  {d.booked > 0 && (
+                    <div style={{ width: `${bookedPct}%`, background: '#1E40AF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {bookedPct > 15 && <span style={{ fontSize: 9, color: '#fff', fontWeight: 600 }}>{d.booked}</span>}
+                    </div>
+                  )}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
+                    {(100 - bookedPct) > 12 && <span style={{ fontSize: 9, color: '#6B7280' }}>{d.hardAvailable}</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text3)', marginTop: 1 }}>
+                  <span>{d.booked > 0 ? `${d.booked} booked` : 'none booked'} / {d.initial} quota</span>
+                  <span>{d.hardAvailable} available</span>
+                </div>
+              </div>
+              {/* Bar 2: Pre-assign vs available or initial */}
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>
+                  Pre-assign vs {bar2BaseState === 'available' ? 'Available' : 'Initial quota'}
+                </div>
+                <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden', background: '#FED7AA' }}>
+                  <div style={{
+                    width: `${preassignPct}%`,
+                    background: d.isOvercommit
+                      ? 'repeating-linear-gradient(45deg, #F97316, #F97316 4px, #FED7AA 4px, #FED7AA 8px)'
+                      : '#F97316',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {preassignPct > 15 && <span style={{ fontSize: 9, color: d.isOvercommit ? '#7C2D12' : '#fff', fontWeight: 600 }}>{d.preassign}</span>}
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4 }}>
+                    {!d.isOvercommit && preassignPct < 88 && <span style={{ fontSize: 9, color: '#92400E' }}>{d.preassignAvail} avail</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text3)', marginTop: 1 }}>
+                  <span>
+                    {d.preassign} pre-assigned
+                    {d.isOvercommit && <span style={{ color: '#DC2626', fontWeight: 700 }}> ⚠ OC (+{Math.abs(d.preassignAvail)} over)</span>}
+                  </span>
+                  {!d.isOvercommit && <span>{d.preassignAvail} pre-assign avail</span>}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
         return (
-          <div className="table-wrap" style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ minWidth: 160 }}>Carrier</th>
-                  <th>POL Region</th>
-                  <th>POD Region</th>
-                  {DISPLAY_WEEKS.map(w => (
-                    <th key={w} className="text-center" style={{ minWidth: 80 }}>W{w.split('/')[0]}</th>
+          <div>
+            {/* Fixed legend */}
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 12, flexWrap: 'wrap', fontSize: 11, color: 'var(--text2)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text)', marginRight: 2 }}>Legend:</span>
+              <span>
+                <span style={{ display: 'inline-block', width: 10, height: 10, background: '#1E40AF', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }}></span>
+                Carrier Booking — confirmed hard bookings with carrier
+              </span>
+              <span>
+                <span style={{ display: 'inline-block', width: 10, height: 10, background: '#F97316', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }}></span>
+                Pre-assign — system soft-bookings, not yet confirmed
+              </span>
+              <span>
+                <span style={{ display: 'inline-block', width: 10, height: 10, background: '#E5E7EB', border: '1px solid #D1D5DB', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }}></span>
+                Available — Initial quota minus Carrier Booking
+              </span>
+              <span style={{ color: '#DC2626' }}>
+                <span style={{ fontWeight: 700, marginRight: 4 }}>⚠ OC</span>
+                Pre-assign exceeds Available — allowed in pre-assign stage
+              </span>
+            </div>
+
+            {/* Filter bar */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)' }}>
+                Carrier
+                <select className="pagination-select" value={filterCarrier} onChange={e => setFilterCarrier(e.target.value)}>
+                  <option value="ALL">All</option>
+                  {allCarriers.map(c => <option key={c} value={c}>{CARRIER_LABEL[c] || c}</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)' }}>
+                Month
+                <select className="pagination-select" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setFilterWeek('ALL'); }}>
+                  <option value="ALL">All</option>
+                  {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: filterMonth === 'ALL' ? 'var(--text3)' : 'var(--text2)' }}>
+                Week
+                <select className="pagination-select" value={filterWeek} onChange={e => setFilterWeek(e.target.value)} disabled={filterMonth === 'ALL'}>
+                  <option value="ALL">All</option>
+                  {weekOptions.map(w => <option key={w} value={w}>W{w.split('/')[0]}</option>)}
+                </select>
+              </label>
+              {viewLevel === 3 && (
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text2)' }}>
+                  <span>Bar 2 compare to:</span>
+                  {(['available', 'initial'] as const).map(opt => (
+                    <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                      <input type="radio" name="bar2base" value={opt} checked={bar2BaseState === opt} onChange={() => setBar2BaseState(opt)} style={{ cursor: 'pointer' }} />
+                      {opt === 'available' ? 'Available (recommended)' : 'Initial quota'}
+                    </label>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(rowKey => {
-                  const [carrier, polReg, podReg] = rowKey.split('|');
-                  return (
-                    <tr key={rowKey}>
-                      <td style={{ fontWeight: 500 }}>{CARRIER_LABEL[carrier] || carrier}</td>
-                      <td className="mono" style={{ fontSize: 11 }}>{polReg}</td>
-                      <td className="mono" style={{ fontSize: 11 }}>{podReg}</td>
-                      {DISPLAY_WEEKS.map(w => {
-                        const cell = getCell(rowKey, w);
-                        const colors = cellColor(cell.available, cell.initial);
-                        return (
-                          <td key={w} style={{ padding: '4px 6px' }}>
-                            {cell.initial > 0 ? (
-                              <div
-                                className="text-center rounded font-mono"
-                                style={{ backgroundColor: colors.bg, color: colors.text, padding: '3px 6px', fontSize: 11, cursor: 'default' }}
-                                title={`Initial: ${cell.initial} | Pre-assigned: ${cell.preassign} | Booked: ${cell.booked} | Available: ${cell.available}`}
-                              >
-                                {cell.available}
-                                {cell.initial > 0 && <span style={{ opacity: 0.55, fontSize: 10 }}>/{cell.initial}</span>}
-                              </div>
-                            ) : (
-                              <div className="text-center font-mono" style={{ color: 'var(--text3)', fontSize: 11 }}>—</div>
-                            )}
+                </div>
+              )}
+            </div>
+
+            {/* Subtitle */}
+            <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10, fontStyle: 'italic' }}>
+              {viewLevel === 1 && 'Year overview — cells show Carrier Booking available TEU aggregated per month. Color reflects hard availability (Initial − Carrier Booking). ⚠ OC = Pre-assign exceeds available space (normal and expected in pre-assign stage).'}
+              {viewLevel === 2 && `${filterMonth} breakdown — each column is one allocation week. Figures show available TEU (Initial − Carrier Booking). Color reflects Carrier Booking utilization only; Pre-assign does not affect color.`}
+              {viewLevel === 3 && `Week W${filterWeek.split('/')[0]} detail — Bar 1: Carrier Booking against initial quota. Bar 2: Pre-assign soft-booking against ${bar2BaseState === 'available' ? 'available space (Initial − Carrier Booking)' : 'initial quota'}.`}
+            </p>
+
+            {/* Table */}
+            <div className="table-wrap" style={{ maxHeight: 'calc(100vh - 380px)', overflow: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: 140 }}>Carrier</th>
+                    <th style={{ minWidth: 110 }}>POL Region</th>
+                    <th style={{ minWidth: 110 }}>POD Region</th>
+                    {viewLevel === 1 && MONTHS.map(m => (
+                      <th key={m} className="text-center" style={{ minWidth: 110 }}>
+                        {m}
+                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Avail / Total</div>
+                      </th>
+                    ))}
+                    {viewLevel === 2 && weekOptions.map(w => (
+                      <th key={w} className="text-center" style={{ minWidth: 100 }}>
+                        W{w.split('/')[0]}
+                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Avail / Total</div>
+                      </th>
+                    ))}
+                    {viewLevel === 3 && <th style={{ minWidth: 300 }}>W{filterWeek.split('/')[0]} — Allocation Detail</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.length === 0 ? (
+                    <tr><td colSpan={viewLevel === 1 ? 6 : viewLevel === 2 ? 3 + weekOptions.length : 4} className="empty">No allocation data</td></tr>
+                  ) : filteredRows.map(rowKey => {
+                    const [carrier, polReg, podReg] = rowKey.split('|');
+                    return (
+                      <tr key={rowKey}>
+                        <td style={{ fontWeight: 500 }}>{CARRIER_LABEL[carrier] || carrier}</td>
+                        <td style={{ fontSize: 11, color: 'var(--text2)' }}>{polReg}</td>
+                        <td style={{ fontSize: 11, color: 'var(--text2)' }}>{podReg}</td>
+                        {viewLevel === 1 && MONTHS.map(m => {
+                          const d = getAggData(rowKey, MONTH_WEEKS[m]);
+                          return (
+                            <td key={m} style={{ textAlign: 'center', padding: '4px 6px' }}>
+                              {renderHeatCell(d, mkTooltip(`${CARRIER_LABEL[carrier] || carrier} · ${polReg} → ${podReg} · ${m}`, d))}
+                            </td>
+                          );
+                        })}
+                        {viewLevel === 2 && weekOptions.map(w => {
+                          const d = getWeekData(rowKey, w);
+                          return (
+                            <td key={w} style={{ textAlign: 'center', padding: '4px 6px' }}>
+                              {renderHeatCell(d, mkTooltip(`${CARRIER_LABEL[carrier] || carrier} · ${polReg} → ${podReg} · W${w.split('/')[0]}`, d))}
+                            </td>
+                          );
+                        })}
+                        {viewLevel === 3 && (
+                          <td style={{ padding: '2px 12px' }}>
+                            {renderDualBars(rowKey, filterWeek)}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         );
       })()}
