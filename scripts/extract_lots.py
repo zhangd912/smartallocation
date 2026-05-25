@@ -207,8 +207,19 @@ for r in ns_cands:
         ns_sel.append(r); lane_cnt[lane] = lane_cnt.get(lane,0)+1
     if len(ns_sel) >= 36: break
 
-# Booking: 50 records
-book_sel = book_pool[:50]
+# Booking: 50 records — status distribution: 30 NS + 12 BOOKED_EXACT + 5 BOOKED_UPDATED + 3 EXCEPTION
+# Sort so records with VESSEL_MAP lanes come first (needed for BOOKED_* statuses)
+lanes_with_vessels = set(VESSEL_MAP.keys())
+book_vessel = [r for r in book_pool if (r.get('origin_pol','').strip(), r.get('origin_pod','').strip()) in lanes_with_vessels]
+book_other  = [r for r in book_pool if (r.get('origin_pol','').strip(), r.get('origin_pod','').strip()) not in lanes_with_vessels]
+# 30 NS first (any lane), then vessel-map lanes for BOOKED_* statuses
+book_ns_pool     = (book_other + book_vessel)[:30]
+book_booked_pool = (book_vessel + book_other)    # vessel-map lanes first
+book_exact_sel   = book_booked_pool[:12]
+book_upd_sel     = book_booked_pool[12:17]
+book_exc_sel     = book_booked_pool[17:20]
+# ensure we don't exceed 50 total
+book_ns_sel      = book_ns_pool[:30]
 
 print(f'Final: NS={len(ns_sel)}, ASSIGNED={len(assigned_sel)}, ON_HOLD={len(on_hold_sel)}, EXC={sum(1 for x in [exc_crd_later, exc_no_voyage] if x)}', file=sys.stderr)
 
@@ -264,14 +275,18 @@ def ts_po(row, id_num, status, exc_key=None, exc_step=None, oh_key=None):
     if srd:
         L += [f"    srd: '{srd}',"]
 
-    if status == 'ASSIGNED':
+    if status in ('ASSIGNED', 'BOOKED_EXACT', 'BOOKED_UPDATED'):
         lane = (pol, pod)
         vm   = VESSEL_MAP.get(lane, {})
-        L += [f"    priority: 1,"]
+        voyage_val = vm.get('voyage','')
+        if status == 'BOOKED_UPDATED':
+            voyage_val = voyage_val + 'U'  # suffix 'U' signals an updated voyage
+        if status == 'ASSIGNED':
+            L += [f"    priority: 1,"]
         L += [f"    carrier: '{clean(vm.get('carrier','Hapag-Lloyd'))}',"]
         L += [f"    service: '{clean(vm.get('service','NE2'))}',"]
         L += [f"    vessel: '{clean(vm.get('vessel',''))}',"]
-        L += [f"    voyage: '{clean(vm.get('voyage',''))}',"]
+        L += [f"    voyage: '{clean(voyage_val)}',"]
         L += [f"    etd: '{vm.get('etd','')}',"]
         L += [f"    eta: '{vm.get('eta','')}',"]
         if vm.get('peta'):
@@ -323,12 +338,30 @@ if exc_no_voyage:
 
 lines.append("];\n")
 
-# BOOKING_MOCK_POS
+# BOOKING_MOCK_POS — 30 NOT_STARTED + 12 BOOKED_EXACT + 5 BOOKED_UPDATED + 3 EXCEPTION
 lines.append("export const BOOKING_MOCK_POS: PO[] = [")
 bid = 101
-for r in book_sel:
+
+# 30 NOT_STARTED
+for r in book_ns_sel:
+    lines.append(ts_po(r, bid, 'NOT_STARTED') + ',')
+    bid += 1
+
+# 12 BOOKED_EXACT
+for r in book_exact_sel:
     lines.append(ts_po(r, bid, 'BOOKED_EXACT') + ',')
     bid += 1
+
+# 5 BOOKED_UPDATED
+for r in book_upd_sel:
+    lines.append(ts_po(r, bid, 'BOOKED_UPDATED') + ',')
+    bid += 1
+
+# 3 EXCEPTION (noSpace at step 3)
+for r in book_exc_sel:
+    lines.append(ts_po(r, bid, 'EXCEPTION', exc_key='noSpace', exc_step=3) + ',')
+    bid += 1
+
 lines.append("];\n")
 
 # Allocation usage seed (empty — computed live from pos/bookingPos state)

@@ -15,7 +15,7 @@ import { AllocationManagement } from './components/allocation/AllocationManageme
 import { ExceptionDashboard } from './components/exception/ExceptionDashboard';
 import { ResolveModal } from './components/exception/ResolveModal';
 import { MOCK_POS, BOOKING_MOCK_POS, DEMO_ALLOCATION_USAGE } from './data/mockData';
-import { INITIAL_ALLOCATION, EARLY_SHIPMENT_LOTS } from './data/referenceData';
+import { INITIAL_ALLOCATION, EARLY_SHIPMENT_LOTS, BOOKING_MATRIX, VESSEL_SCHEDULES, FND_RULES } from './data/referenceData';
 import { I18N, t } from './i18n';
 
 const CARRIER_TO_CODE: Record<string, string> = {
@@ -39,6 +39,88 @@ function etdToAllocWeek(etd: string): string {
   const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${String(week).padStart(2, '0')}/${String(d.getUTCFullYear()).slice(-2)}`;
 }
+
+function addDaysStr(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+const CARRIER_TO_FND_CODE_APP: Record<string, string> = {
+  'Hapag-Lloyd': 'HAPL',
+  'CMA CGM':     'CMA',
+  'Tailwind':    'TSHG',
+  'MSC':         'MSC',
+  'COSCO':       'COSCO',
+  'Maersk':      'MAEU',
+};
+
+function computeAssignment(po: PO): PO {
+  // Step 1: date buffer check
+  const fobW = parseInt(po.fobWeek.split('/')[0]);
+  const crdW = parseInt(po.crdWeek.split('/')[0]);
+  const bufferWeeks = fobW - crdW;
+  if (bufferWeeks < 0)
+    return { ...po, status: 'EXCEPTION', exceptionAtStep: 1, exceptionKey: 'crdLaterThanFob' };
+  if (bufferWeeks > 4 && !EARLY_SHIPMENT_LOTS.has(po.lot.trim()))
+    return { ...po, status: 'ON_HOLD', onHoldKey: 'requestTooEarly' };
+
+  // Step 2: booking matrix lookup
+  const laneEntries = BOOKING_MATRIX.filter(e => e.polCode === po.pol && e.podCode === po.pod);
+  if (laneEntries.length === 0)
+    return { ...po, status: 'EXCEPTION', exceptionAtStep: 2, exceptionKey: 'noCarrier' };
+
+  // Step 3: pre-assign allows overcommit — all carriers pass through
+
+  // Step 4: vessel schedule lookup
+  const etdEarly = addDaysStr(po.crd, 12);
+  const etdLate  = addDaysStr(po.crd, 20);
+  // Carrier rank from BOOKING_MATRIX order: P1=0, P2=1, P3=2...
+  const carrierRank = new Map(laneEntries.map((e, i) => [e.carrierCode, i]));
+
+  const candidates = VESSEL_SCHEDULES.filter(v =>
+    v.polCode === po.pol &&
+    v.podCode === po.pod &&
+    carrierRank.has(v.carrierCode) &&
+    v.etd >= etdEarly && v.etd <= etdLate &&
+    v.eta <= po.ldd &&
+    v.peta <= po.ldd
+  ).sort((a, b) => {
+    const ra = carrierRank.get(a.carrierCode)!;
+    const rb = carrierRank.get(b.carrierCode)!;
+    if (ra !== rb) return ra - rb;
+    return a.eta.localeCompare(b.eta) || b.etd.localeCompare(a.etd);
+  });
+
+  if (candidates.length === 0)
+    return { ...po, status: 'EXCEPTION', exceptionAtStep: 4, exceptionKey: 'noVoyage' };
+  if (candidates.length >= 2 &&
+      candidates[0].etd === candidates[1].etd &&
+      candidates[0].eta === candidates[1].eta)
+    return { ...po, status: 'EXCEPTION', exceptionAtStep: 4, exceptionKey: 'voyageTie' };
+
+  // Step 5: assign best vessel + FND lookup
+  const best = candidates[0];
+  const fndCode = CARRIER_TO_FND_CODE_APP[best.carrier];
+  const fndRule = fndCode && po.dwh
+    ? FND_RULES.find(r => r.carrier === fndCode && r.dwh === po.dwh.toUpperCase() && r.pod === po.pod)
+    : null;
+
+  return {
+    ...po,
+    status: 'ASSIGNED',
+    carrier: best.carrier,
+    service: best.service,
+    vessel: best.vessel,
+    voyage: best.voyage,
+    etd: best.etd,
+    eta: best.eta,
+    peta: best.peta,
+    del: fndRule?.fnd ?? po.del,
+    priority: best.priority,
+  };
+}
+
 import './styles/index.css';
 
 export type Lang = 'en' | 'zh';
@@ -205,27 +287,7 @@ function App() {
         clearInterval(interval);
         setRunningStep(null);
         setIsLiveRun(false);
-        const fobW = parseInt(po.fobWeek.split('/')[0]);
-        const crdW = parseInt(po.crdWeek.split('/')[0]);
-        const bufferWeeks = fobW - crdW;
-        let updated: PO;
-        if (bufferWeeks < 0) {
-          updated = { ...po, status: 'EXCEPTION', exceptionAtStep: 1, exceptionKey: 'crdLaterThanFob' };
-        } else if (bufferWeeks > 4 && !EARLY_SHIPMENT_LOTS.has(po.lot.trim())) {
-          updated = { ...po, status: 'ON_HOLD', onHoldKey: 'requestTooEarly' };
-        } else {
-          updated = {
-            ...po,
-            status: 'ASSIGNED',
-            carrier: 'Hapag-Lloyd',
-            service: 'NE2',
-            vessel: 'MAERSK STOCKHOLM',
-            voyage: 'MS620W',
-            etd: '2026-06-08',
-            eta: '2026-07-15',
-            priority: 1
-          };
-        }
+        const updated = computeAssignment(po);
         setPos(prev => prev.map(p => p.id === po.id ? updated : p));
         setDrawerPo(updated);
         showToast(t(lang, 'toast.singleDone', { po: po.moovRef || po.lot}), 'success');
@@ -250,34 +312,9 @@ function App() {
 
     targets.forEach((po, idx) => {
       setTimeout(() => {
-        const rand = Math.random();
-        let extras: Partial<PO> = {};
+        const updated = computeAssignment(po);
 
-        if (rand < 0.7) {
-          const choices = [
-            { c: 'CMA CGM', s: 'FAL3', v: 'CMA CGM CHRISTOPHE COLOMB', vo: '0FAYPE1MA' },
-            { c: 'Hapag-Lloyd', s: 'NE2', v: 'AL ZUBARA', vo: 'AZ618W' },
-            { c: 'MSC', s: 'SILK SERVICE', v: 'MSC GULSUN', vo: 'FW618R' },
-            { c: 'Tailwind', s: 'PAX', v: 'TAILWIND HARMONY', vo: 'TW2618N' }
-          ];
-          const p = choices[Math.floor(Math.random() * choices.length)];
-          extras = {
-            status: 'ASSIGNED',
-            carrier: p.c,
-            service: p.s,
-            vessel: p.v,
-            voyage: p.vo,
-            etd: '2026-05-' + String(2 + Math.floor(Math.random() * 10)).padStart(2, '0'),
-            eta: '2026-06-' + String(10 + Math.floor(Math.random() * 10)).padStart(2, '0'),
-            priority: 1
-          };
-        } else if (rand < 0.85) {
-          extras = { status: 'EXCEPTION', exceptionAtStep: 4, exceptionKey: 'batchNoVoyage' };
-        } else {
-          extras = { status: 'ON_HOLD', onHoldKey: 'batchCheck' };
-        }
-
-        setPos(prev => prev.map(p => p.id === po.id ? { ...p, ...extras } : p));
+        setPos(prev => prev.map(p => p.id === po.id ? updated : p));
 
         if (idx === targets.length - 1) {
           setBatchRunning(false);
@@ -311,8 +348,8 @@ function App() {
 
   const bookingCounts = useMemo(() => {
     const exactMatch = bookingPos.filter(p => p.status === 'BOOKED_EXACT').length;
-    const withSnapshot = bookingPos.filter(
-      p => p.preassignSnapshot && p.status !== 'NOT_STARTED'
+    const bookedTotal = bookingPos.filter(
+      p => p.status === 'BOOKED_EXACT' || p.status === 'BOOKED_UPDATED'
     ).length;
     return {
       total: bookingPos.length,
@@ -320,8 +357,8 @@ function App() {
       booked: bookingPos.filter(p => BOOKED_STATUSES.includes(p.status as POStatus)).length,
       exception: bookingPos.filter(p => p.status === 'EXCEPTION').length,
       exactMatch,
-      withSnapshot,
-      accuracy: withSnapshot > 0 ? Math.round(exactMatch / withSnapshot * 100) : 0,
+      withSnapshot: bookedTotal,
+      accuracy: bookedTotal > 0 ? Math.round(exactMatch / bookedTotal * 100) : 0,
     };
   }, [bookingPos]);
 

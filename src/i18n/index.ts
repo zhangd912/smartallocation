@@ -60,7 +60,8 @@ export const I18N = {
         s4FailNoAlloc: 'Vessel(s) found on lane but no allocation available in week {week}. EXCEPTION: has vessel voyage, no available allocation.',
         s4FailTie: 'After ranking, rank-1 and rank-2 voyages share identical ETD and ETA — cannot automatically select unique best. Manual review required.',
         s5Pass: 'Pre-assignment completed. Record written to t_pre_assign. PO status updated to ASSIGNED.',
-        skipped: 'Previous step failed or PO is on hold — step skipped.'
+        skipped: 'Previous step failed or PO is on hold — step skipped.',
+        cbStep1Pass: 'SRD confirmed. Shipment authorized for carrier booking.'
       }
     },
     result: { assignedTitle: 'Pre-Assignment Completed', onHoldTitle: 'On Hold', exceptionTitle: 'Exception · Manual Review Required', failedAtStep: 'Failed at Step {n}: ', carrier: 'Carrier', service: 'Service', vesselVoyage: 'Vessel / Voyage', etd: 'ETD', eta: 'ETA' },
@@ -83,6 +84,7 @@ export const I18N = {
       crdLaterThanFob: 'CRD week is later than FOB week — the cargo ready date falls after the planned FOB departure. Needs human to resolve.',
     },
     pagination: { perPage: '{n} / page', showing: 'Showing {from}–{to} of {total}' },
+    stepTitles: { cb1: 'Verify SRD & Authorization' },
     toast: { batchStart: 'Starting batch pre-assign for {n} POs…', batchDone: '✓ Batch pre-assign completed ({n} POs processed)', singleDone: '✓ {po} pre-assigned successfully', noEligible: 'No eligible POs to run', resolveSuccess: '✓ {po} resolved and moved to Pre-Assign list' },
     user: { name: 'z.dorothy', email: 'z.dorothy@moovlogistics.com' },
     misc: { langLabel: 'EN' }
@@ -146,7 +148,8 @@ export const I18N = {
         s4FailNoAlloc: '找到航次但 ETD 周 {week} 配额已耗尽。EXCEPTION：有船无仓。',
         s4FailTie: '排序后第 1 名与第 2 名航次 ETD 和 ETA 完全相同——无法自动选出唯一最优，需人工介入。',
         s5Pass: '预排船完成。记录已写入 t_pre_assign，PO 状态更新为 ASSIGNED。',
-        skipped: '前一步失败或 PO 已暂缓——跳过此步骤。'
+        skipped: '前一步失败或 PO 已暂缓——跳过此步骤。',
+        cbStep1Pass: 'SRD 已确认，货物已授权进行舱位预订。'
       }
     },
     result: { assignedTitle: '预排船完成', onHoldTitle: '已暂缓', exceptionTitle: '异常 · 需要人工介入', failedAtStep: '失败于步骤 {n}：', carrier: '船公司', service: '航线服务', vesselVoyage: '船舶 / 航次', etd: 'ETD', eta: 'ETA' },
@@ -169,6 +172,7 @@ export const I18N = {
       crdLaterThanFob: 'CRD 周晚于 FOB 周——货物备货日期在计划 FOB 出发日期之后，需人工处理。',
     },
     pagination: { perPage: '{n} 条/页', showing: '显示第 {from}–{to} 条，共 {total} 条' },
+    stepTitles: { cb1: '验证 SRD 及授权' },
     toast: { batchStart: '开始批量执行 {n} 条 PO 的预排船…', batchDone: '✓ 批量预排船完成（共处理 {n} 条）', singleDone: '✓ {po} 预排船完成', noEligible: '没有可执行的 PO', resolveSuccess: '✓ {po} 已解决并移回预排船列表' },
     user: { name: 'z.dorothy', email: 'z.dorothy@moovlogistics.com' },
     misc: { langLabel: '中' }

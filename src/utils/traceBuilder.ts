@@ -1,6 +1,6 @@
 import { PO, Lang } from '../App';
 import { t } from '../i18n';
-import { EARLY_SHIPMENT_LOTS } from '../data/referenceData';
+import { EARLY_SHIPMENT_LOTS, BOOKING_MATRIX, FND_RULES } from '../data/referenceData';
 
 export interface TraceEntry {
   step: number;
@@ -26,11 +26,21 @@ export interface TraceEntry {
  */
 const CARRIER_DISPLAY_TO_CODE: Record<string, string> = {
   'Hapag-Lloyd': 'HLCU',
-  'CMA CGM': 'CMDU',
-  'Tailwind': 'TSHG',
-  'MSC': 'MSCU',
-  'Maersk': 'MAEU',
-  'COSCO': 'COSU',
+  'CMA CGM':     'CMDU',
+  'Tailwind':    'TSHG',
+  'MSC':         'MSCU',
+  'Maersk':      'MAEU',
+  'COSCO':       'COSU',
+};
+
+// Maps carrier display name → FND_RULES carrier code (different from SCAC)
+const CARRIER_TO_FND_CODE: Record<string, string> = {
+  'Hapag-Lloyd': 'HAPL',
+  'CMA CGM':     'CMA',
+  'Tailwind':    'TSHG',
+  'MSC':         'MSC',
+  'COSCO':       'COSCO',
+  'Maersk':      'MAEU',
 };
 
 export function buildTraceLog(
@@ -50,8 +60,9 @@ export function buildTraceLog(
   const rul = (n: number) => t(lang, 'step.rules.' + n);
 
   // ── Pass/fail cascade ────────────────────────────────────────────────────
-  // Step 1: Filter Available PO — ON_HOLD or EXCEPTION possible here
-  const s1Pass = !isOnHold && exAt > 1;
+  // Step 1: CB → "Verify SRD & Authorization" always passes (SRD = upstream approval).
+  //         PA → "Filter Available PO" — ON_HOLD or EXCEPTION possible here.
+  const s1Pass = isBookingStage ? true : (!isOnHold && exAt > 1);
   const s2Pass = s1Pass && exAt > 2;
   // Pre-assign: overcommit allowed → step 3 never fails. Booking: hard check applies.
   const s3Pass = s2Pass && (isBookingStage ? exAt > 3 : true);
@@ -85,27 +96,13 @@ export function buildTraceLog(
     return 'ETA ≤ LDD and PETA ≤ LDD (standard rule)';
   })();
 
-  // Carrier list for this lane — Step 2 (only shown when step 2 passes or runs)
-  // If step 2 fails, we show "none" regardless of what Booking Matrix would return
-  const carriersForLane = (s1Pass && !s2Pass)
-    ? 'none'  // Step 2 fails — no carrier in Booking Matrix for this lane
-    : po.pol === 'EGDAM'
-      ? 'none'
-      : po.pol === 'CNSHA' && po.pod === 'ESBCN'
-        ? 'CMA CGM (FAL3) P1, Maersk (AEX) P2'
-        : po.pol === 'CNSWA'
-          ? 'Tailwind (PAX) P1, Hapag-Lloyd (NE2) P2'
-          : po.pol === 'BDCGP'
-            ? 'Tailwind (SILK) P1, Hapag-Lloyd (NE2) P2'
-            : po.pol === 'CNXMN'
-              ? 'Hapag-Lloyd (NE2) P1, CMA CGM (FAL3) P2'
-              : po.pod === 'SIKOP'
-                ? 'Tailwind (PAX/DEX) P1, Hapag-Lloyd (NE2) P2'
-                : po.pod === 'BEANR'
-                  ? 'CMA CGM (FAL3) P1, Hapag-Lloyd (NE2) P1, MSC (SILKWAY) P2'
-                  : 'Hapag-Lloyd (NE2) P1, CMA CGM (FAL3) P1, Tailwind (AEX) P2';
+  // Carrier list for this lane — Step 2: dynamic lookup from BOOKING_MATRIX
+  const laneEntries = BOOKING_MATRIX.filter(e => e.polCode === po.pol && e.podCode === po.pod);
+  const carriersForLane = (s1Pass && !s2Pass) || laneEntries.length === 0
+    ? 'none'
+    : laneEntries.map((e, i) => `${e.carrier} (${e.service}) P${i + 1}`).join(', ');
 
-  const carrierCount = carriersForLane === 'none' ? 0 : carriersForLane.split(',').length;
+  const carrierCount = carriersForLane === 'none' ? 0 : laneEntries.length;
 
   // ── Per-carrier allocation breakdown (Step 3) using real allocationUsage ──
   // Looks up each candidate carrier's actual available TEU across the ETD weeks.
@@ -166,62 +163,86 @@ export function buildTraceLog(
         ? `${po.vessel} / ${po.voyage} + 2 alternatives`
         : '3 voyages found in window';
 
-  const fndResult = po.del || 'NLMOE';
+  // FND lookup: use FND_RULES with carrier-to-FND-code mapping
+  const fndCarrierCode = po.carrier ? (CARRIER_TO_FND_CODE[po.carrier] ?? null) : null;
+  const fndRule = fndCarrierCode && po.dwh && po.pod
+    ? FND_RULES.find(r => r.carrier === fndCarrierCode && r.dwh === po.dwh.toUpperCase() && r.pod === po.pod)
+    : null;
+  const fndResult = fndRule?.fnd ?? po.del ?? 'NLMOE';
 
   return [
-    // ── Step 1: Filter Available PO ───────────────────────────────────────
+    // ── Step 1 (CB): Verify SRD & Authorization ──────────────────────────
+    // Carrier Booking stage: SRD = upstream business approval. Always PASS.
+    // ── Step 1 (PA): Filter Available PO ─────────────────────────────────
     // Check CRD vs FOB week, CRD/FOB buffer range, and LDD/ETA delivery rules.
     // ON_HOLD: buffer > 4 weeks + not in Early Shipment List.
     // EXCEPTION: CRD after FOB, or LDD/ETA delivery rule violated.
-    {
-      step: 1,
-      title: ttl(1),
-      duration: 64,
-      result: isOnHold ? 'ON_HOLD'
-            : po.exceptionKey === 'crdLaterThanFob' ? 'FAIL'
-            : exAt === 1 ? 'FAIL'
-            : 'PASS',
-      reason: isOnHold
-        ? (bufferWeeks > 4
-            ? r('s1OnHoldTooEarly', { buffer: bufferWeeks, crdWeek: po.crdWeek, fobWeek: po.fobWeek })
-            : r('s1OnHold', { buffer: bufferWeeks, crdWeek: po.crdWeek, fobWeek: po.fobWeek }))
-        : po.exceptionKey === 'crdLaterThanFob'
-          ? r('s1FailCrdLater', { crdWeek: po.crdWeek, fobWeek: po.fobWeek })
-          : exAt === 1
-            ? r('s1Fail')
-            : bufferWeeks > 4
-              ? r('s1PassEarlyShipment', { buffer: bufferWeeks })
-              : r('s1Pass', { buffer: bufferWeeks }),
-      rule: rul(1),
-      input: {
-        'CRD Week': po.crdWeek,
-        'FOB Week': po.fobWeek,
-        'Buffer (FOB − CRD)': bufferWeeks < 0
-          ? `${Math.abs(bufferWeeks)} weeks (CRD is AFTER FOB → EXCEPTION)`
-          : `${bufferWeeks} weeks`,
-        'Allowed Range': '0–4 weeks | > 4 → Early Shipment List check',
-        ...(bufferWeeks > 4 ? {
-          'Early Shipment Check': EARLY_SHIPMENT_LOTS.has(po.lot.trim())
-            ? '✓ LOT found in Early Shipment List'
-            : '✗ LOT not found in Early Shipment List'
-        } : {}),
-        'LDD': po.ldd,
-        'LDD / ETA Delivery Rule': lddEtaRule,
+    isBookingStage
+    ? {
+        step: 1,
+        title: t(lang, 'stepTitles.cb1'),
+        duration: 38,
+        result: 'PASS' as const,
+        reason: r('cbStep1Pass'),
+        rule: 'Confirm SRD is present and LDD has not passed. SRD implies upstream business approval — shipment is cleared to proceed to carrier booking.',
+        input: {
+          'SRD': po.srd || '—',
+          'LDD': po.ldd,
+        },
+        output: {
+          'Status': 'AUTHORIZED',
+          'SRD': po.srd || '—',
+        },
+      }
+    : {
+        step: 1,
+        title: ttl(1),
+        duration: 64,
+        result: (isOnHold ? 'ON_HOLD'
+              : po.exceptionKey === 'crdLaterThanFob' ? 'FAIL'
+              : exAt === 1 ? 'FAIL'
+              : 'PASS') as 'PASS' | 'FAIL' | 'ON_HOLD' | 'SKIPPED',
+        reason: isOnHold
+          ? (bufferWeeks > 4
+              ? r('s1OnHoldTooEarly', { buffer: bufferWeeks, crdWeek: po.crdWeek, fobWeek: po.fobWeek })
+              : r('s1OnHold', { buffer: bufferWeeks, crdWeek: po.crdWeek, fobWeek: po.fobWeek }))
+          : po.exceptionKey === 'crdLaterThanFob'
+            ? r('s1FailCrdLater', { crdWeek: po.crdWeek, fobWeek: po.fobWeek })
+            : exAt === 1
+              ? r('s1Fail')
+              : bufferWeeks > 4
+                ? r('s1PassEarlyShipment', { buffer: bufferWeeks })
+                : r('s1Pass', { buffer: bufferWeeks }),
+        rule: rul(1),
+        input: {
+          'CRD Week': po.crdWeek,
+          'FOB Week': po.fobWeek,
+          'Buffer (FOB − CRD)': bufferWeeks < 0
+            ? `${Math.abs(bufferWeeks)} weeks (CRD is AFTER FOB → EXCEPTION)`
+            : `${bufferWeeks} weeks`,
+          'Allowed Range': '0–4 weeks | > 4 → Early Shipment List check',
+          ...(bufferWeeks > 4 ? {
+            'Early Shipment Check': EARLY_SHIPMENT_LOTS.has(po.lot.trim())
+              ? '✓ LOT found in Early Shipment List'
+              : '✗ LOT not found in Early Shipment List'
+          } : {}),
+          'LDD': po.ldd,
+          'LDD / ETA Delivery Rule': lddEtaRule,
+        },
+        output: (() => {
+          if (isOnHold && bufferWeeks > 4)
+            return { 'Status': 'ON_HOLD', 'Reason': `Buffer ${bufferWeeks} wk > 4 wk max, LOT not in Early Shipment List`, 'Action': 'Request early shipment approval' };
+          if (isOnHold)
+            return { 'Status': 'ON_HOLD', 'Buffer': `${bufferWeeks} wk`, 'Action': 'Operations team review required' };
+          if (po.exceptionKey === 'crdLaterThanFob')
+            return { 'Status': 'EXCEPTION', 'Error': `CRD (${po.crdWeek}) is after FOB (${po.fobWeek}) — cargo not ready before departure` };
+          if (exAt === 1)
+            return { 'Status': 'EXCEPTION', 'Error': 'LDD/ETA delivery rule failed. Manual review required.' };
+          if (bufferWeeks > 4)
+            return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk (>4)`, 'Early Shipment': 'Approved in Early Shipment List', 'LDD / ETA': 'Pass ✓' };
+          return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk`, 'LDD / ETA Check': 'Pass ✓' };
+        })() as unknown as Record<string, string>,
       },
-      output: (() => {
-        if (isOnHold && bufferWeeks > 4)
-          return { 'Status': 'ON_HOLD', 'Reason': `Buffer ${bufferWeeks} wk > 4 wk max, LOT not in Early Shipment List`, 'Action': 'Request early shipment approval' };
-        if (isOnHold)
-          return { 'Status': 'ON_HOLD', 'Buffer': `${bufferWeeks} wk`, 'Action': 'Operations team review required' };
-        if (po.exceptionKey === 'crdLaterThanFob')
-          return { 'Status': 'EXCEPTION', 'Error': `CRD (${po.crdWeek}) is after FOB (${po.fobWeek}) — cargo not ready before departure` };
-        if (exAt === 1)
-          return { 'Status': 'EXCEPTION', 'Error': 'LDD/ETA delivery rule failed. Manual review required.' };
-        if (bufferWeeks > 4)
-          return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk (>4)`, 'Early Shipment': 'Approved in Early Shipment List', 'LDD / ETA': 'Pass ✓' };
-        return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk`, 'LDD / ETA Check': 'Pass ✓' };
-      })() as unknown as Record<string, string>
-    },
 
     // ── Step 2: Match Candidate Carriers ─────────────────────────────────
     // Query Booking Matrix for POL → POD lane to get initial carrier list.
