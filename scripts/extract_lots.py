@@ -171,14 +171,14 @@ if exc_crd_later is None:
 exc_lots = {r.get('order_number','') for r in [exc_no_voyage, exc_crd_later] if r}
 print(f'Exception lots: {exc_lots}', file=sys.stderr)
 
-# ON_HOLD: pick 3 with buf < 0 (CRD after FOB), excluding exceptions
+# ON_HOLD: pick 4 with buf < 0 (CRD after FOB), excluding exceptions
 on_hold_cands = [r for r in pre_pool if buf(r) < -1 and r.get('order_number','') not in exc_lots]
 random.shuffle(on_hold_cands)
-on_hold_sel = on_hold_cands[:3]
+on_hold_sel = on_hold_cands[:4]
 on_hold_lots = {r.get('order_number','') for r in on_hold_sel}
 print(f'ON_HOLD lots: {on_hold_lots}', file=sys.stderr)
 
-# ASSIGNED: lanes with vessel schedules
+# ASSIGNED: lanes with vessel schedules — target 8
 assigned_lanes = set(VESSEL_MAP.keys())
 assigned_cands = [r for r in pre_pool
                   if (r.get('origin_pol','').strip(), r.get('origin_pod','').strip()) in assigned_lanes
@@ -189,26 +189,26 @@ for r in assigned_cands:
     lane = (r.get('origin_pol','').strip(), r.get('origin_pod','').strip())
     if lane not in used_lanes:
         assigned_sel.append(r); used_lanes.add(lane)
-    if len(assigned_sel) >= 7: break
+    if len(assigned_sel) >= 8: break
 for r in assigned_cands:                        # fill if needed
     if r not in assigned_sel: assigned_sel.append(r)
-    if len(assigned_sel) >= 7: break
+    if len(assigned_sel) >= 8: break
 assigned_lots = {r.get('order_number','') for r in assigned_sel}
 print(f'ASSIGNED: {len(assigned_sel)}', file=sys.stderr)
 
-# NOT_STARTED: 28 records, diversified by lane
+# NOT_STARTED: 35 records, diversified by lane
 excluded = exc_lots | on_hold_lots | assigned_lots
 ns_cands = [r for r in pre_pool if r.get('order_number','') not in excluded]
 random.shuffle(ns_cands)
 ns_sel, lane_cnt = [], {}
 for r in ns_cands:
     lane = (r.get('origin_pol','').strip(), r.get('origin_pod','').strip())
-    if lane_cnt.get(lane,0) < 4:
+    if lane_cnt.get(lane,0) < 5:
         ns_sel.append(r); lane_cnt[lane] = lane_cnt.get(lane,0)+1
-    if len(ns_sel) >= 28: break
+    if len(ns_sel) >= 36: break
 
-# Booking: first 10
-book_sel = book_pool[:10]
+# Booking: 50 records
+book_sel = book_pool[:50]
 
 print(f'Final: NS={len(ns_sel)}, ASSIGNED={len(assigned_sel)}, ON_HOLD={len(on_hold_sel)}, EXC={sum(1 for x in [exc_crd_later, exc_no_voyage] if x)}', file=sys.stderr)
 
@@ -330,6 +330,10 @@ for r in book_sel:
     lines.append(ts_po(r, bid, 'BOOKED_EXACT') + ',')
     bid += 1
 lines.append("];\n")
+
+# Allocation usage seed (empty — computed live from pos/bookingPos state)
+lines.append("// Demo seed for allocation baseline (empty — usage computed live from state)")
+lines.append("export const DEMO_ALLOCATION_USAGE: Record<string, { preassign: number; booked: number }> = {};\n")
 
 # Write file
 output = '\n'.join(lines)
