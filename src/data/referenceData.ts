@@ -38,6 +38,7 @@ export interface VesselSchedule {
   service: string;
   etd: string;
   eta: string;
+  peta: string;
   availableTeu: number;
   priority: number;
 }
@@ -91,70 +92,109 @@ export const FND_RULES: FndRule[] = [
 ];
 
 // Booking matrix: which carriers serve each POL→POD lane
-// CNSHA→ESBCN intentionally has no vessels (causes EXCEPTION Step 4)
+// Source: carrier_booking_matrix_copy.xlsx (FEWB sheet), rebuilt via scripts/rebuild_booking_matrix.py
+// POL mapping applied: CNNGB→CNNBO, CNQDG→CNTAO, CNXMG→CNXMN
+// CNSHA and CNSWA entries maintained manually (no xlsx data for these lanes)
 // EGDAM→NLRTM intentionally absent (causes EXCEPTION Step 1)
 export const BOOKING_MATRIX: BookingMatrixEntry[] = [
-  // CNTAO (Qingdao) → NLRTM (Rotterdam)
-  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 30 },
-  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMA',  service: 'FAL3',    transitDays: 29 },
-  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'AEX',     transitDays: 32 },
-  // CNNBO (Ningbo) → NLRTM (Rotterdam)
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 28 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMA',  service: 'FAL3',    transitDays: 29 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'AEX',     transitDays: 31 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Maersk',       carrierCode: 'MAEU', service: 'AE-1',    transitDays: 30 },
-  // CNXMN (Xiamen) → NLRTM
-  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 30 },
-  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMA',  service: 'FAL3',    transitDays: 31 },
-  // BDCGP (Chittagong) → SIKOP (Koprivnica)
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'SILK',    transitDays: 32 },
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 30 },
+  // BDCGP (Chittagong) → BEANR (Antwerp)
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'BEANR', podRegion: 'NEU', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'TEX/PAX/DEX', transitDays: 35 },
+
+  // BDCGP → ESBCN (Barcelona)
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'MEDEX', transitDays: 55 },
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+
+  // BDCGP → NLRTM (Rotterdam)
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'FAL3', transitDays: 46 },
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC', carrierCode: 'MSCU', service: 'CHITTAGONG FEEDER', transitDays: 42 },
+
+  // BDCGP → SIKOP (Koper)
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'BEX2', transitDays: 46 },
+  { polCode: 'BDCGP', polRegion: 'BD', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+
+  // CNNBO (Ningbo) → ESBCN
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'MEX', transitDays: 38 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE2', transitDays: 45 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'MSC', carrierCode: 'MSCU', service: 'LYNX', transitDays: 45 },
+
+  // CNNBO → NLRTM
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'FAL3', transitDays: 39 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE3', transitDays: 42 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC', carrierCode: 'MSCU', service: 'SILK SERVICE', transitDays: 45 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'COSCO', carrierCode: 'COSU', service: 'AEU3', transitDays: 35 },
+
+  // CNNBO → SIKOP
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'BEX2', transitDays: 41 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE1', transitDays: 50 },
+
+  // CNTAO (Qingdao) → ESBCN
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'MEX', transitDays: 48 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'MSC', carrierCode: 'MSCU', service: 'JADE SERVICE', transitDays: 56 },
+
+  // CNTAO → NLRTM
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'FAL3', transitDays: 43 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE4', transitDays: 55 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC', carrierCode: 'MSCU', service: 'CONDOR SERVICE', transitDays: 48 },
+
   // CNTAO → SIKOP
-  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'PAX/DEX', transitDays: 35 },
-  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 32 },
-  // CNSWA (Shantou) → SIKOP — produces tied voyages → EXCEPTION Step 5
-  { polCode: 'CNSWA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'PAX',     transitDays: 36 },
-  { polCode: 'CNSWA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 33 },
-  // CNSHA → BEANR (Antwerp)
-  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMA',  service: 'FAL3',    transitDays: 27 },
-  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HAPL', service: 'NE2',     transitDays: 28 },
-  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'MSC',          carrierCode: 'MSC',  service: 'SILKWAY', transitDays: 29 },
-  // CNSHA → ESBCN — carriers exist but no vessel schedule → EXCEPTION Step 4
-  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM',      carrierCode: 'CMA',  service: 'FAL3',    transitDays: 27 },
-  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Maersk',       carrierCode: 'MAEU', service: 'AEX',     transitDays: 27 },
-  // CNNBO → ESBCN (Barcelona)
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'MEX',     transitDays: 28 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'PAX',     transitDays: 35 },
-  // CNNBO → SIKOP (Koprivnica)
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'BEX2',    transitDays: 32 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'PAX',     transitDays: 35 },
-  // CNNBO → BEANR (Antwerp)
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'FAL3',    transitDays: 27 },
-  { polCode: 'CNNBO', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'MSC',          carrierCode: 'MSCU', service: 'SILK SERVICE', transitDays: 28 },
-  // BDCGP → ESBCN
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'CBS/MEDEX', transitDays: 35 },
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'TEX/PAX', transitDays: 38 },
-  // BDCGP → NLRTM
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'FAL3',    transitDays: 32 },
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC',          carrierCode: 'MSCU', service: 'CHITTAGONG FEEDER', transitDays: 35 },
-  // BDCGP → BEANR
-  { polCode: 'BDCGP', polRegion: 'BD',       podCode: 'BEANR', podRegion: 'NEU', carrier: 'Tailwind',     carrierCode: 'TSHG', service: 'TEX/PAX', transitDays: 35 },
-  // CNDAL → NLRTM (Dalian)
-  { polCode: 'CNDAL', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'FAL3',    transitDays: 25 },
-  { polCode: 'CNDAL', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HLCU', service: 'NE2',     transitDays: 26 },
-  { polCode: 'CNDAL', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC',          carrierCode: 'MSCU', service: 'TIGER',   transitDays: 27 },
-  // CNNGB → NLRTM (Ningbo)
-  { polCode: 'CNNGB', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',      carrierCode: 'CMDU', service: 'FAL3',    transitDays: 29 },
-  { polCode: 'CNNGB', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd',  carrierCode: 'HLCU', service: 'NE3',     transitDays: 30 },
-  { polCode: 'CNNGB', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC',          carrierCode: 'MSCU', service: 'SILK SERVICE', transitDays: 30 },
-  // LKCMB → NLRTM (Colombo)
-  { polCode: 'LKCMB', polRegion: 'MIDDLE EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC',       carrierCode: 'MSCU', service: 'AUSTRALIA EXPRESS', transitDays: 25 },
-  // LKCMB → ESBCN
-  { polCode: 'LKCMB', polRegion: 'MIDDLE EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind',  carrierCode: 'TSHG', service: 'TEX/PAX', transitDays: 28 },
-  { polCode: 'LKCMB', polRegion: 'MIDDLE EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'MSC',       carrierCode: 'MSCU', service: 'HALDIA SHUTTLE', transitDays: 30 },
-  // LKCMB → SIKOP
-  { polCode: 'LKCMB', polRegion: 'MIDDLE EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',  carrierCode: 'TSHG', service: 'TEX/PAX', transitDays: 30 },
-  { polCode: 'LKCMB', polRegion: 'MIDDLE EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'MSC',       carrierCode: 'MSCU', service: 'HALDIA SHUTTLE', transitDays: 32 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'BEX2', transitDays: 47 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNTAO', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE1', transitDays: 58 },
+
+  // CNXMN (Xiamen) → ESBCN
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'MEX', transitDays: 36 },
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE2', transitDays: 41 },
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'MSC', carrierCode: 'MSCU', service: 'CONDOR SERVICE', transitDays: 40 },
+
+  // CNXMN → NLRTM
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'FAL3', transitDays: 42 },
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE3', transitDays: 43 },
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC', carrierCode: 'MSCU', service: 'CONDOR SERVICE', transitDays: 39 },
+
+  // CNXMN → SIKOP
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'BEX2', transitDays: 38 },
+  { polCode: 'CNXMN', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE1', transitDays: 53 },
+
+  // CNYTN (Yantian) → ESBCN
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'MEX', transitDays: 35 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'SE2', transitDays: 37 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'MSC', carrierCode: 'MSCU', service: 'JADE SERVICE', transitDays: 37 },
+
+  // CNYTN → NLRTM
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'FAL3', transitDays: 35 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE2', transitDays: 38 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'MSC', carrierCode: 'MSCU', service: 'SWAN', transitDays: 41 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'COSCO', carrierCode: 'COSU', service: 'AEU5', transitDays: 35 },
+
+  // CNYTN → SIKOP
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM', carrierCode: 'CMDU', service: 'BEX2', transitDays: 38 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind', carrierCode: 'TSHG', service: 'PAX', transitDays: 35 },
+  { polCode: 'CNYTN', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'MSC', carrierCode: 'MSCU', service: 'DRAGON', transitDays: 47 },
+
+  // CNSHA → NLRTM — manual (no xlsx data for CNSHA)
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'CMA CGM',     carrierCode: 'CMDU', service: 'FAL3',    transitDays: 27 },
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'NLRTM', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE2',     transitDays: 28 },
+
+  // CNSHA → SIKOP — manual (no xlsx data for CNSHA)
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'CMA CGM',     carrierCode: 'CMDU', service: 'BEX2',    transitDays: 36 },
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',    carrierCode: 'TSHG', service: 'PAX',     transitDays: 33 },
+
+  // CNSWA (Shantou) → SIKOP — produces tied voyages → EXCEPTION Step 4 (manual, no xlsx data)
+  { polCode: 'CNSWA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Tailwind',    carrierCode: 'TSHG', service: 'PAX',     transitDays: 36 },
+  { polCode: 'CNSWA', polRegion: 'FAR EAST', podCode: 'SIKOP', podRegion: 'MED', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE2',     transitDays: 33 },
+
+  // CNSHA → BEANR (Antwerp) — manual, no xlsx data for CNSHA
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'CMA CGM',     carrierCode: 'CMDU', service: 'FAL3',    transitDays: 27 },
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'Hapag-Lloyd', carrierCode: 'HLCU', service: 'NE2',     transitDays: 28 },
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'BEANR', podRegion: 'NEU', carrier: 'MSC',         carrierCode: 'MSCU', service: 'SILKWAY', transitDays: 29 },
+
+  // CNSHA → ESBCN — carriers exist but no vessel schedule → EXCEPTION Step 4 (manual)
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'CMA CGM',     carrierCode: 'CMDU', service: 'FAL3',    transitDays: 27 },
+  { polCode: 'CNSHA', polRegion: 'FAR EAST', podCode: 'ESBCN', podRegion: 'MED', carrier: 'Maersk',      carrierCode: 'MAEU', service: 'AEX',     transitDays: 27 },
 ];
 
 // Allocation data by carrier + FOB week
@@ -208,31 +248,106 @@ export const ALLOCATION_DATA: AllocationEntry[] = [
 
 // Vessel schedules — CNSHA→ESBCN intentionally empty; CNSWA→SIKOP has two tied voyages
 export const VESSEL_SCHEDULES: VesselSchedule[] = [
-  // CNTAO → NLRTM
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'AL ZUBARA',           voyage: 'AZ618W',    polCode: 'CNTAO', podCode: 'NLRTM', service: 'NE2',     etd: '2026-05-18', eta: '2026-06-23', availableTeu: 68, priority: 1 },
-  { carrierCode: 'CMA',  carrier: 'CMA CGM',     vessel: 'CMA CGM EIFFEL',       voyage: '0FGXPE1MA', polCode: 'CNTAO', podCode: 'NLRTM', service: 'FAL3',    etd: '2026-05-24', eta: '2026-06-29', availableTeu: 44, priority: 1 },
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'MAERSK ESSEX',         voyage: 'ME620W',    polCode: 'CNTAO', podCode: 'NLRTM', service: 'NE2',     etd: '2026-06-01', eta: '2026-07-07', availableTeu: 55, priority: 1 },
-  // CNNBO → NLRTM
-  { carrierCode: 'CMA',  carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',    voyage: '0FFXPE2MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',    etd: '2026-05-16', eta: '2026-06-22', availableTeu: 42, priority: 1 },
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'MAERSK STOCKHOLM',     voyage: 'MS620W',    polCode: 'CNNBO', podCode: 'NLRTM', service: 'NE2',     etd: '2026-06-08', eta: '2026-07-15', availableTeu: 58, priority: 1 },
-  { carrierCode: 'CMA',  carrier: 'CMA CGM',     vessel: 'CMA CGM MONTMARTRE',   voyage: '0FFYPE2MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',    etd: '2026-06-06', eta: '2026-07-13', availableTeu: 35, priority: 1 },
-  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'BUXWAVE',              voyage: 'BW622N',    polCode: 'CNNBO', podCode: 'NLRTM', service: 'AEX',     etd: '2026-06-15', eta: '2026-07-22', availableTeu: 28, priority: 2 },
-  // CNXMN → NLRTM
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',     voyage: 'BX619W',    polCode: 'CNXMN', podCode: 'NLRTM', service: 'NE2',     etd: '2026-06-10', eta: '2026-07-16', availableTeu: 40, priority: 1 },
-  { carrierCode: 'CMA',  carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',    voyage: '0FFXPE3MA', polCode: 'CNXMN', podCode: 'NLRTM', service: 'FAL3',    etd: '2026-06-12', eta: '2026-07-18', availableTeu: 30, priority: 1 },
-  // CNTAO → SIKOP
-  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'TAILWIND PIONEER',     voyage: 'TW2620N',   polCode: 'CNTAO', podCode: 'SIKOP', service: 'PAX/DEX', etd: '2026-05-19', eta: '2026-06-30', availableTeu: 18, priority: 1 },
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',     voyage: 'BX621W',    polCode: 'CNTAO', podCode: 'SIKOP', service: 'NE2',     etd: '2026-06-22', eta: '2026-08-01', availableTeu: 25, priority: 1 },
-  // BDCGP → SIKOP
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',     voyage: 'AZ620W',    polCode: 'BDCGP', podCode: 'SIKOP', service: 'NE2',     etd: '2026-06-01', eta: '2026-07-10', availableTeu: 22, priority: 1 },
-  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'WIKING',               voyage: 'WK622W',    polCode: 'BDCGP', podCode: 'SIKOP', service: 'SILK',    etd: '2026-06-25', eta: '2026-08-05', availableTeu: 18, priority: 2 },
-  // CNSWA → SIKOP — two voyages with identical ETD and ETA → EXCEPTION Step 5
-  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'PANDA 002',            voyage: 'PD2620W',   polCode: 'CNSWA', podCode: 'SIKOP', service: 'PAX',     etd: '2026-05-28', eta: '2026-07-02', availableTeu: 16, priority: 1 },
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'MAERSK ESSEX',         voyage: 'ME619W',    polCode: 'CNSWA', podCode: 'SIKOP', service: 'NE2',     etd: '2026-05-28', eta: '2026-07-02', availableTeu: 20, priority: 1 },
-  // CNSHA → BEANR (Antwerp)
-  { carrierCode: 'CMA',  carrier: 'CMA CGM',     vessel: 'CMA CGM MONTMARTRE',   voyage: '0FFYPE3MA', polCode: 'CNSHA', podCode: 'BEANR', service: 'FAL3',    etd: '2026-06-15', eta: '2026-07-20', availableTeu: 38, priority: 1 },
-  { carrierCode: 'HAPL', carrier: 'Hapag-Lloyd', vessel: 'MAERSK STOCKHOLM',     voyage: 'MS621W',    polCode: 'CNSHA', podCode: 'BEANR', service: 'NE2',     etd: '2026-06-18', eta: '2026-07-23', availableTeu: 45, priority: 1 },
-  // CNSHA → ESBCN — no vessel records here → EXCEPTION Step 4 for 514440-BCN-1
+  // ── CNTAO → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'AL ZUBARA',          voyage: 'AZ618W',    polCode: 'CNTAO', podCode: 'NLRTM', service: 'NE4',   etd: '2026-05-18', eta: '2026-06-23', peta: '2026-06-25', availableTeu: 68, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM EIFFEL',      voyage: '0FGXPE1MA', polCode: 'CNTAO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-05-24', eta: '2026-06-29', peta: '2026-07-01', availableTeu: 44, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK ESSEX',        voyage: 'ME620W',    polCode: 'CNTAO', podCode: 'NLRTM', service: 'NE4',   etd: '2026-06-01', eta: '2026-07-07', peta: '2026-07-09', availableTeu: 55, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FHXPE1MA', polCode: 'CNTAO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-01', eta: '2026-08-13', peta: '2026-08-15', availableTeu: 48, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',    voyage: 'BX629W',    polCode: 'CNTAO', podCode: 'NLRTM', service: 'NE4',   etd: '2026-07-14', eta: '2026-08-25', peta: '2026-08-27', availableTeu: 42, priority: 1 },
+
+  // ── CNNBO → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',   voyage: '0FFXPE2MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-05-16', eta: '2026-06-22', peta: '2026-06-24', availableTeu: 42, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FFXPE3MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-05-29', eta: '2026-07-06', peta: '2026-07-08', availableTeu: 38, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MONTMARTRE',  voyage: '0FFYPE2MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-06', eta: '2026-07-13', peta: '2026-07-15', availableTeu: 35, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK STOCKHOLM',    voyage: 'MS620W',    polCode: 'CNNBO', podCode: 'NLRTM', service: 'NE3',   etd: '2026-06-08', eta: '2026-07-15', peta: '2026-07-17', availableTeu: 58, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM EIFFEL',      voyage: '0FFXPE5MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-15', eta: '2026-07-24', peta: '2026-07-26', availableTeu: 36, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM RIVIERA',     voyage: '0FFZPE1MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-23', eta: '2026-07-31', peta: '2026-08-02', availableTeu: 40, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'HOUSTON EXPRESS',     voyage: 'HE628W',    polCode: 'CNNBO', podCode: 'NLRTM', service: 'NE3',   etd: '2026-07-01', eta: '2026-08-11', peta: '2026-08-09', availableTeu: 45, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM BELEM',       voyage: '0FG1PE1MA', polCode: 'CNNBO', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-07', eta: '2026-08-14', peta: '2026-08-16', availableTeu: 42, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'AL ZUBARA',           voyage: 'AZ629W',    polCode: 'CNNBO', podCode: 'NLRTM', service: 'NE3',   etd: '2026-07-21', eta: '2026-09-01', peta: '2026-09-03', availableTeu: 50, priority: 1 },
+
+  // ── CNXMN → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',    voyage: 'BX619W',    polCode: 'CNXMN', podCode: 'NLRTM', service: 'NE3',   etd: '2026-06-10', eta: '2026-07-16', peta: '2026-07-18', availableTeu: 40, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',   voyage: '0FFXPE4MA', polCode: 'CNXMN', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-12', eta: '2026-07-24', peta: '2026-07-26', availableTeu: 30, priority: 1 },
+
+  // ── CNYTN → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FG2PE1MA', polCode: 'CNYTN', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-07', eta: '2026-08-11', peta: '2026-08-13', availableTeu: 44, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK ESSEX',        voyage: 'ME628W',    polCode: 'CNYTN', podCode: 'NLRTM', service: 'NE2',   etd: '2026-07-14', eta: '2026-08-21', peta: '2026-08-22', availableTeu: 50, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM BELEM',       voyage: '0FG2PE2MA', polCode: 'CNYTN', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-21', eta: '2026-08-25', peta: '2026-08-27', availableTeu: 38, priority: 1 },
+
+  // ── CNTAO → SIKOP ────────────────────────────────────────────────────────
+  // CNTAO→SIKOP: Tailwind W21 (odd) removed — no even-week TSHG vessel in this window; CMDU/HLCU cover as P1
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'BRUSSELS EXPRESS',    voyage: 'BX621W',    polCode: 'CNTAO', podCode: 'SIKOP', service: 'SE1',   etd: '2026-06-22', eta: '2026-08-01', peta: '2026-08-02', availableTeu: 25, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MARSEILLE',   voyage: '0FG3PE1MA', polCode: 'CNTAO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-28', eta: '2026-09-13', peta: '2026-09-12', availableTeu: 20, priority: 1 },
+
+  // ── CNNBO → SIKOP ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FF1PE1MA', polCode: 'CNNBO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-05-29', eta: '2026-07-09', peta: '2026-07-11', availableTeu: 22, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FF1PE2MA', polCode: 'CNNBO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-06-15', eta: '2026-07-26', peta: '2026-07-28', availableTeu: 18, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FF2PE1MA', polCode: 'CNNBO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-06-29', eta: '2026-08-09', peta: '2026-08-11', availableTeu: 20, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM RIVIERA',     voyage: '0FF3PE1MA', polCode: 'CNNBO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-07', eta: '2026-08-17', peta: '2026-08-19', availableTeu: 18, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MARSEILLE',   voyage: '0FF4PE1MA', polCode: 'CNNBO', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-14', eta: '2026-08-24', peta: '2026-08-26', availableTeu: 16, priority: 1 },
+
+  // ── CNNBO → ESBCN ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',   voyage: '0FF2PE3MA', polCode: 'CNNBO', podCode: 'ESBCN', service: 'MEX',   etd: '2026-06-15', eta: '2026-07-23', peta: '2026-07-25', availableTeu: 20, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FF3PE2MA', polCode: 'CNNBO', podCode: 'ESBCN', service: 'MEX',   etd: '2026-06-28', eta: '2026-08-05', peta: '2026-08-07', availableTeu: 18, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM BELEM',       voyage: '0FG4PE1MA', polCode: 'CNNBO', podCode: 'ESBCN', service: 'MEX',   etd: '2026-07-26', eta: '2026-09-02', peta: '2026-09-04', availableTeu: 16, priority: 1 },
+
+  // ── CNYTN → SIKOP ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FG5PE1MA', polCode: 'CNYTN', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-02', eta: '2026-08-09', peta: '2026-08-11', availableTeu: 18, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM RIVIERA',     voyage: '0FG5PE2MA', polCode: 'CNYTN', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-14', eta: '2026-08-21', peta: '2026-08-23', availableTeu: 16, priority: 1 },
+
+  // ── CNYTN → ESBCN ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FG6PE1MA', polCode: 'CNYTN', podCode: 'ESBCN', service: 'MEX',   etd: '2026-07-20', eta: '2026-08-24', peta: '2026-08-26', availableTeu: 15, priority: 1 },
+
+  // ── CNTAO → ESBCN ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MARSEILLE',   voyage: '0FG7PE1MA', polCode: 'CNTAO', podCode: 'ESBCN', service: 'MEX',   etd: '2026-07-19', eta: '2026-09-05', peta: '2026-09-06', availableTeu: 18, priority: 1 },
+
+  // ── CNXMN → SIKOP ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',   voyage: '0FF5PE1MA', polCode: 'CNXMN', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-06-30', eta: '2026-08-07', peta: '2026-08-09', availableTeu: 20, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FF6PE1MA', polCode: 'CNXMN', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-07', eta: '2026-08-14', peta: '2026-08-15', availableTeu: 18, priority: 1 },
+
+  // ── CNXMN → ESBCN ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM EIFFEL',      voyage: '0FF7PE1MA', polCode: 'CNXMN', podCode: 'ESBCN', service: 'MEX',   etd: '2026-06-30', eta: '2026-08-05', peta: '2026-08-07', availableTeu: 16, priority: 1 },
+
+  // ── BDCGP → SIKOP ────────────────────────────────────────────────────────
+  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'WIKING',              voyage: 'WK622W',    polCode: 'BDCGP', podCode: 'SIKOP', service: 'PAX',   etd: '2026-06-25', eta: '2026-08-05', peta: '2026-08-06', availableTeu: 18, priority: 2 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FB1PE1MA', polCode: 'BDCGP', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-06-29', eta: '2026-08-14', peta: '2026-08-16', availableTeu: 20, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FB1PE2MA', polCode: 'BDCGP', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-07', eta: '2026-08-22', peta: '2026-08-23', availableTeu: 18, priority: 1 },
+  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'WIKING',              voyage: 'WK628W',    polCode: 'BDCGP', podCode: 'SIKOP', service: 'PAX',   etd: '2026-07-06', eta: '2026-08-10', peta: '2026-08-11', availableTeu: 14, priority: 2 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FB2PE1MA', polCode: 'BDCGP', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-14', eta: '2026-08-29', peta: '2026-08-30', availableTeu: 18, priority: 1 },
+
+  // ── BDCGP → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM RIVIERA',     voyage: '0FB3PE1MA', polCode: 'BDCGP', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-28', eta: '2026-08-13', peta: '2026-08-15', availableTeu: 35, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MARSEILLE',   voyage: '0FB4PE1MA', polCode: 'BDCGP', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-07', eta: '2026-08-22', peta: '2026-08-24', availableTeu: 32, priority: 1 },
+  { carrierCode: 'MSCU', carrier: 'MSC',         vessel: 'MSC GULSUN',          voyage: 'MG628W',    polCode: 'BDCGP', podCode: 'NLRTM', service: 'CHITTAGONG FEEDER', etd: '2026-07-17', eta: '2026-08-28', peta: '2026-08-30', availableTeu: 28, priority: 2 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM BELEM',       voyage: '0FB5PE1MA', polCode: 'BDCGP', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-21', eta: '2026-09-05', peta: '2026-09-06', availableTeu: 30, priority: 1 },
+
+  // ── BDCGP → BEANR ────────────────────────────────────────────────────────
+  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'WIKING',              voyage: 'WK627W',    polCode: 'BDCGP', podCode: 'BEANR', service: 'PAX',   etd: '2026-07-07', eta: '2026-08-11', peta: '2026-08-12', availableTeu: 16, priority: 1 },
+
+  // ── BDCGP → ESBCN ────────────────────────────────────────────────────────
+  // BDCGP→ESBCN: Tailwind W29 (odd) removed. W28 ETD 07-06 too early; W30 ETD 07-20 too late for CRD 06-28 window. LOT correctly → EXCEPTION noVoyage
+
+  // ── CNSHA → NLRTM ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM TROCADERO',   voyage: '0FS1PE1MA', polCode: 'CNSHA', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-06-16', eta: '2026-07-13', peta: '2026-07-15', availableTeu: 45, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK STOCKHOLM',    voyage: 'MS622W',    polCode: 'CNSHA', podCode: 'NLRTM', service: 'NE2',   etd: '2026-06-29', eta: '2026-07-27', peta: '2026-07-29', availableTeu: 40, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FS2PE1MA', polCode: 'CNSHA', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-07', eta: '2026-08-03', peta: '2026-08-05', availableTeu: 42, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM RIVIERA',     voyage: '0FS3PE1MA', polCode: 'CNSHA', podCode: 'NLRTM', service: 'FAL3',  etd: '2026-07-21', eta: '2026-08-17', peta: '2026-08-19', availableTeu: 38, priority: 1 },
+
+  // ── CNSHA → SIKOP ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FS4PE1MA', polCode: 'CNSHA', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-06-29', eta: '2026-08-06', peta: '2026-08-08', availableTeu: 22, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MARSEILLE',   voyage: '0FS5PE1MA', polCode: 'CNSHA', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-07', eta: '2026-08-14', peta: '2026-08-16', availableTeu: 20, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM LOUVRE',      voyage: '0FS5PE2MA', polCode: 'CNSHA', podCode: 'SIKOP', service: 'BEX2',  etd: '2026-07-14', eta: '2026-08-21', peta: '2026-08-22', availableTeu: 18, priority: 1 },
+
+  // ── CNSHA → BEANR ────────────────────────────────────────────────────────
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM MONTMARTRE',  voyage: '0FFYPE3MA', polCode: 'CNSHA', podCode: 'BEANR', service: 'FAL3',  etd: '2026-06-15', eta: '2026-07-20', peta: '2026-07-22', availableTeu: 38, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK STOCKHOLM',    voyage: 'MS621W',    polCode: 'CNSHA', podCode: 'BEANR', service: 'NE2',   etd: '2026-06-18', eta: '2026-07-23', peta: '2026-07-25', availableTeu: 45, priority: 1 },
+  { carrierCode: 'CMDU', carrier: 'CMA CGM',     vessel: 'CMA CGM NERVAL',      voyage: '0FS6PE1MA', polCode: 'CNSHA', podCode: 'BEANR', service: 'FAL3',  etd: '2026-06-30', eta: '2026-07-27', peta: '2026-07-29', availableTeu: 32, priority: 1 },
+
+  // ── CNSWA → SIKOP — identical ETD+ETA → EXCEPTION Step 4 voyageTie ───────
+  { carrierCode: 'TSHG', carrier: 'Tailwind',    vessel: 'PANDA 002',           voyage: 'PD2620W',   polCode: 'CNSWA', podCode: 'SIKOP', service: 'PAX',   etd: '2026-05-28', eta: '2026-07-02', peta: '2026-07-03', availableTeu: 16, priority: 1 },
+  { carrierCode: 'HLCU', carrier: 'Hapag-Lloyd', vessel: 'MAERSK ESSEX',        voyage: 'ME619W',    polCode: 'CNSWA', podCode: 'SIKOP', service: 'NE2',   etd: '2026-05-28', eta: '2026-07-02', peta: '2026-07-04', availableTeu: 20, priority: 1 },
+  // CNSHA → ESBCN: intentionally no vessel records → EXCEPTION Step 4 noVoyage
 ];
 
 // Key format: "${carrierCode}|${polRegion}|${podRegion}|${week}" where week = "WW/YY" (zero-padded, e.g. "01/26", "22/26")
