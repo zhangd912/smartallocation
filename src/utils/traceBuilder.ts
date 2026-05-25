@@ -220,7 +220,7 @@ export function buildTraceLog(
         if (bufferWeeks > 4)
           return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk (>4)`, 'Early Shipment': 'Approved in Early Shipment List', 'LDD / ETA': 'Pass ✓' };
         return { 'Status': 'ELIGIBLE', 'Buffer': `${bufferWeeks} wk`, 'LDD / ETA Check': 'Pass ✓' };
-      })()
+      })() as unknown as Record<string, string>
     },
 
     // ── Step 2: Match Candidate Carriers ─────────────────────────────────

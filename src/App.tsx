@@ -58,7 +58,7 @@ export interface PO {
   id: number;
   moovRef?: string;
   bookingRef?: string;
-  poNo: string;
+  poNo?: string;
   lot: string;
   ian: string;
   article: string;
@@ -228,7 +228,7 @@ function App() {
         }
         setPos(prev => prev.map(p => p.id === po.id ? updated : p));
         setDrawerPo(updated);
-        showToast(t(lang, 'toast.singleDone', { po: po.poNo }), 'success');
+        showToast(t(lang, 'toast.singleDone', { po: po.moovRef || po.lot}), 'success');
       } else {
         setRunningStep(cur);
       }
@@ -409,7 +409,7 @@ function App() {
         };
         setBookingPos(prev => prev.map(p => p.id === po.id ? updated : p));
         setBookingDrawerPo(updated);
-        showToast(t(lang, 'toast.singleDone', { po: po.poNo }), 'success');
+        showToast(t(lang, 'toast.singleDone', { po: po.moovRef || po.lot}), 'success');
       } else {
         setBookingRunningStep(cur);
       }
@@ -629,7 +629,7 @@ function App() {
                 ? { ...p, status: 'NOT_STARTED', exceptionAtStep: undefined, exceptionKey: undefined }
                 : p
             ));
-            showToast(t(lang, 'toast.resolveSuccess', { po: resolvePo.poNo }), 'success');
+            showToast(t(lang, 'toast.resolveSuccess', { po: resolvePo.moovRef || resolvePo.lot }), 'success');
           }
         }}
         lang={lang}
@@ -661,7 +661,7 @@ function App() {
                 ? { ...p, status: 'NOT_STARTED', exceptionAtStep: undefined, exceptionKey: undefined }
                 : p
             ));
-            showToast(t(lang, 'toast.resolveSuccess', { po: bookingResolvePo.poNo }), 'success');
+            showToast(t(lang, 'toast.resolveSuccess', { po: bookingResolvePo.moovRef || bookingResolvePo.lot }), 'success');
           }
         }}
         lang={lang}
