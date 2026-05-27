@@ -299,11 +299,9 @@ function App() {
         clearInterval(interval);
         setRunningStep(null);
         setIsLiveRun(false);
-        // Persist result to table
+        // Persist result to table — filter stays unchanged so user can
+        // keep running remaining LOTs in the same tab (e.g. NOT_STARTED)
         setPos(prev => prev.map(p => p.id === po.id ? updated : p));
-        // Reset filter to ALL so the updated PO is visible regardless of
-        // which filter tab was active (e.g. NOT_STARTED would hide an ON_HOLD result)
-        setFilter('ALL');
         // Show result-specific toast
         const label = po.moovRef || po.lot;
         if (updated.status === 'ASSIGNED') {
