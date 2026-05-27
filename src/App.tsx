@@ -544,14 +544,12 @@ function App() {
     }
   };
 
-  const toggleLang = () => setLang(l => l === 'en' ? 'zh' : 'en');
-
   return (
     <>
       <TopNav
         lang={lang}
         counts={counts}
-        toggleLang={toggleLang}
+        setLang={setLang}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         activeSubTab={activeSubTab}

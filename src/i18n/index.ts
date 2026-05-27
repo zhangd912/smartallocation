@@ -1,4 +1,4 @@
-export type Lang = 'en' | 'zh';
+export type Lang = 'en' | 'zh' | 'de';
 
 export const I18N = {
   en: {
@@ -176,6 +176,94 @@ export const I18N = {
     toast: { batchStart: '开始批量执行 {n} 条 PO 的预排船…', batchDone: '✓ 批量预排船完成（共处理 {n} 条）', singleDone: '✓ {po} 预排船完成', singleOnHold: '⏸ {po} — 已暂缓（CRD 时间过早）', singleException: '⚠ {po} — 第 {n} 步发生异常', noEligible: '没有可执行的 PO', resolveSuccess: '✓ {po} 已解决并移回预排船列表' },
     user: { name: 'z.dorothy', email: 'z.dorothy@moovlogistics.com' },
     misc: { langLabel: '中' }
+  },
+  de: {
+    nav: { preAssign: 'Vorab-Buchung', allocationMgmt: 'Kapazitätsverwaltung', exception: 'Ausnahme', carrierBooking: 'Reederei-Buchung', carrierBookingException: 'Ausnahme', phase2: 'P2' },
+    page: { title: 'Vorab-Buchung', subtitle: 'PO-Import & Automatische Vorab-Zuweisung', heroTitle: 'Das PO-Board, ', heroTitleAccent: 'automatisiert.', heroBody: 'Ruft die PO-Liste in Echtzeit aus BI ab und führt die 5-stufige Logik aus, um Reederei, Service und Seereise optimal zuzuweisen. Klicken Sie auf eine Zeile für das vollständige Trace-Log; wählen Sie Zeilen für die Stapelverarbeitung.' },
+    bookingPage: { title: 'Reederei-Buchung', subtitle: 'Tatsächliche Buchungsausführung' },
+    meta: { activeMatrix: 'Aktive Matrix', triggeredToday: 'Heute ausgelöst', lastSynced: 'Zuletzt synchronisiert', minAgo: 'Vor 2 Min.', poUnit: 'POs' },
+    stats: { total: 'POs gesamt', not_started: 'Nicht gestartet', assigned: 'Zugewiesen', on_hold: 'Zurückgestellt', exception: 'Ausnahme', trend: { total: 'Alle importiert', not_started: '+4 in der letzten Stunde', assigned: 'Ø 1,8 s pro PO', on_hold: 'Lieferant muss handeln', exception: 'Manuelle Prüfung erforderlich' } },
+    bookingStats: { total: 'Anfragen gesamt', not_started: 'Nicht gestartet', booked: 'Gebucht', exception: 'Ausnahme', accuracy: 'Vorab-Buchungsgenauigkeit', trend: { total: 'Alle LOTs mit SRD', not_started: 'Buchung ausstehend', booked: 'Reederei bestätigt', exception: 'Aktion erforderlich', accuracy: 'Exakte Vorab-Übereinstimmung' } },
+    bookingStatus: { ASSIGNED: 'Gebucht', NOT_STARTED: 'Nicht gestartet', ON_HOLD: 'Zurückgestellt', EXCEPTION: 'Ausnahme', RUNNING: 'Läuft…', BOOKED_EXACT: 'Gebucht · Exakte Übereinstimmung', BOOKED_UPDATED: 'Gebucht · Aktualisiert' },
+    search: { placeholder: 'PO, Lot, IAN, POL, POD suchen…' },
+    filter: { ALL: 'Alle', NOT_STARTED: 'Nicht gestartet', ASSIGNED: 'Vorab-zugewiesen', ON_HOLD: 'Zurückgestellt', EXCEPTION: 'Ausnahme', BOOKED: 'Gebucht' },
+    btn: { syncFromBi: 'Aus BI synchronisieren', runAll: 'Alle nicht gestarteten ausführen', runSelected: 'Vorab-Buchung ausführen · {n} POs', running: 'Läuft…', runSingle: 'Ausführen', review: 'Prüfen', trace: 'Trace', close: 'Schließen', rerun: 'Erneut ausführen', gotoException: '→ Zur Ausnahmebehandlung', resolve: 'Lösen' },
+    resolve: { title: 'Ausnahme lösen / Resolve Exception', traceTitle: 'Ausführungs-Trace-Log', commentLabel: 'Kommentar', commentPlaceholder: 'Beschreiben Sie, wie Sie diese Ausnahme gelöst haben...', commentRequired: 'Ein Kommentar ist vor dem Absenden erforderlich.', submitBtn: 'Absenden / Submit' },
+    selection: '{n} ausgewählt',
+    table: {
+      moovRef: "MOOV's Ref / LOT", poLot: 'PO / Lot', article: 'Artikel',
+      pol: 'POL', pod: 'POD',
+      container: 'Geplante TEU', teu: 'Geplante TEU', ctrType: 'Container-Typ',
+      crdFob: 'CRD · FOB · LDD',
+      carrier: 'Reederei / Schiff / Reise', etdEta: 'ETD / ETA / PETA',
+      status: 'Status', empty: 'Keine POs entsprechen dem aktuellen Filter.',
+      ianSupplier: 'IAN {ian} · {supplier}', noCarrier: '—'
+    },
+    status: { ASSIGNED: 'Vorab-zugewiesen', NOT_STARTED: 'Nicht gestartet', ON_HOLD: 'Zurückgestellt', EXCEPTION: 'Ausnahme', RUNNING: 'Läuft…' },
+    drawer: { title: 'Vorab-Buchung Trace-Log', lane: 'Route', container: 'Geplante TEU', crdFob: 'CRD / FOB', ldd: 'LDD', pipeline: '5-stufige Ausführungspipeline', progress: 'Schritt {current}/5 · {pct}%', completed: '5/5 · 100%' },
+    step: {
+      pass: '✓ Bestanden', fail: '✗ Fehlgeschlagen', skipped: '— Übersprungen', onHold: '⏸ Zurückgestellt', waiting: 'Warten…', processing: 'Logikprüfung läuft…',
+      expand: 'Eingabe / Ausgabe / Regel einblenden', collapse: 'Eingabe / Ausgabe / Regel ausblenden',
+      inputHeading: 'Eingabeparameter', outputHeading: 'Ausgabedaten', ruleHeading: 'Entscheidungsregel',
+      titles: {
+        1: 'Verfügbare POs filtern',
+        2: 'Kandidaten-Reedereien abgleichen',
+        3: 'Verfügbare Reedereien abgleichen',
+        4: 'Seereise abgleichen',
+        5: 'Automatische Vorab-Buchung'
+      },
+      rules: {
+        1: '① CRD-Woche > FOB-Woche → AUSNAHME (Ware nicht rechtzeitig bereit). ② FOB − CRD > 4 Wochen + LOT nicht in Frühversandliste → ZURÜCKGESTELLT. ③ FOB − CRD > 4 Wochen + LOT in Frühversandliste → BESTANDEN. ④ 0 ≤ Puffer ≤ 4 Wochen → LDD/ETA/PETA-Lieferregeln prüfen.',
+        2: 'BOOKING_MATRIX[POL → POD] abfragen → erste Reedereieliste. ETD-Zuteilungswoche schätzen = CRD + 12–20 Tage (ISO-Woche). AUSNAHME, wenn keine Reederei für diese Route registriert.',
+        3: 'Verfügbare Zuteilung jeder Kandidaten-Reederei in der ermittelten ETD-Woche in Echtzeit aus dem Tab „Kapazitätsverwaltung" prüfen.',
+        4: 'VESSEL_SCHEDULES abfragen mit ETD ∈ [CRD+12d, CRD+20d] und ETA ≤ LDD; FND über FND_RULES[Reederei][DWH][POD] auflösen; AUSNAHME wenn keine Reise gefunden. Sortierung: Priorität asc → ETA asc → ETD desc; AUSNAHME wenn Rang-1 und Rang-2 identische ETD und ETA haben.',
+        5: 'Verlader-Buchungsdaten mit der eindeutigen Seereise aus Schritt 4 verknüpfen. Vorab-Buchungsmodul automatisch befüllen. Datensatz in t_pre_assign schreiben (poId, Reederei, Schiff, Reise, ETD, ETA, FND). PO-Status → ZUGEWIESEN.'
+      },
+      reasons: {
+        s1Pass: 'CRD/FOB-Puffer beträgt {buffer} Wochen (im Bereich 0–4 Wochen). LDD/ETA-Lieferregel bestanden. PO ist zulässig.',
+        s1PassEarlyShipment: 'CRD/FOB-Puffer beträgt {buffer} Wochen (> 4 Wochen). LOT in Frühversandliste genehmigt — PO ist zulässig.',
+        s1OnHold: 'CRD ({crdWeek}) liegt {buffer} Woche(n) vor FOB ({fobWeek}). Planungseinschränkung ausgelöst. PO auf ZURÜCKGESTELLT gesetzt — Prüfung durch das Operations-Team erforderlich.',
+        s1OnHoldTooEarly: 'CRD ({crdWeek}) liegt {buffer} Wochen vor FOB ({fobWeek}) — überschreitet das 4-Wochen-Maximum. LOT nicht in Frühversandliste. ZURÜCKGESTELLT: Anfrage zu früh.',
+        s1FailCrdLater: 'CRD-Woche ({crdWeek}) liegt nach FOB-Woche ({fobWeek}) — Ware ist nach geplantem Abfahrtstermin noch nicht bereit. AUSNAHME: manuelle Lösung erforderlich.',
+        s1Fail: 'PO bei Schritt-1-Prüfung fehlgeschlagen — LDD/ETA-Lieferregelverletzung oder Datumsbeschränkung. AUSNAHME: manuelle Lösung erforderlich.',
+        s2Pass: 'Buchungsmatrix hat {count} Reederei(en) für {lane} gefunden. Weiter zur Kapazitätsprüfung.',
+        s2Fail: 'Keine Reederei in der Buchungsmatrix für {lane} registriert. Diese Herkunfts-Ziel-Kombination wird von keiner aktiven Reederei abgedeckt.',
+        s3Pass: 'Kapazitätsprüfung für Woche {week} ({region}) bestanden: Reedereien mit verfügbarer Quote bestätigt.',
+        s3PassOC: 'Kapazitätsprüfung für Woche {week} ({region}) bestanden. ⚠ Hinweis: Vorab-TEU hat bei einer oder mehreren Reedereien den verfügbaren Platz überschritten (Überzeichnung) — in der Vorab-Buchungsphase zulässig.',
+        s3Fail: 'Kapazitätswoche {week}: Alle Reedereien ausgeschöpft — keine hat eine verfügbare Zuteilung ≥ {teu} TEU in dieser Woche.',
+        s4Pass: 'Reise(n) im ETD-Fenster gefunden und sortiert; eindeutig beste ausgewählt. FND aufgelöst.',
+        s4FailNoVoyage: 'Kein Schiff auf {lane} im ETD-Fenster [{start} → {end}] mit ETA ≤ LDD gefunden.',
+        s4FailNoAlloc: 'Schiff(e) auf der Route gefunden, aber keine Zuteilung in Woche {week} verfügbar. AUSNAHME: Schiff vorhanden, keine Kapazität.',
+        s4FailTie: 'Nach Sortierung haben Rang-1 und Rang-2 identische ETD und ETA — eindeutig beste Reise kann nicht automatisch ausgewählt werden. Manuelle Prüfung erforderlich.',
+        s5Pass: 'Vorab-Buchung abgeschlossen. Datensatz in t_pre_assign geschrieben. PO-Status auf ZUGEWIESEN aktualisiert.',
+        skipped: 'Vorheriger Schritt fehlgeschlagen oder PO zurückgestellt — Schritt übersprungen.',
+        cbStep1Pass: 'SRD bestätigt. Sendung für die Reederei-Buchung genehmigt.'
+      }
+    },
+    result: { assignedTitle: 'Vorab-Buchung abgeschlossen', onHoldTitle: 'Zurückgestellt', exceptionTitle: 'Ausnahme · Manuelle Prüfung erforderlich', failedAtStep: 'Fehlgeschlagen bei Schritt {n}: ', carrier: 'Reederei', service: 'Service', vesselVoyage: 'Schiff / Reise', etd: 'ETD', eta: 'ETA' },
+    onHoldReasons: {
+      crdSameWeek: 'CRD und FOB liegen in derselben Woche (Puffer = 0). Lieferant muss CRD verschieben oder Frühversandgenehmigung beantragen.',
+      crdBuffer2: 'CRD/FOB-Puffer beträgt nur 2 Wochen (< 4-Wochen-Minimum). Lieferant muss das Warenbereitstellungsdatum anpassen.',
+      crdBuffer1: 'CRD/FOB-Puffer beträgt nur 1 Woche (< 4-Wochen-Minimum). Lieferant muss CRD vorziehen.',
+      crdLater: 'CRD liegt nach FOB-Woche, tritt in VDDL ein und kann nicht geplant werden.',
+      notInList7: 'CRD ist 7 Wochen früher als FOB (> 4 Wochen) und nicht in der Frühversandliste.',
+      requestTooEarly: 'CRD ist mehr als 4 Wochen vor FOB und LOT ist nicht in der Frühversandliste. Anfrage zu früh — noch nicht bereit zur Vorab-Buchung.',
+      batchCheck: 'Bei der Stapelprüfung festgestellt: PO CRD/FOB-Puffer liegt unter dem Mindestschwellenwert.'
+    },
+    exceptionReasons: {
+      noCarrier: 'Keine Reederei in der Buchungsmatrix für diesen Abgangshafen (POL) registriert. Route nicht abgedeckt.',
+      noAllocation: 'Alle Kandidaten-Reedereien haben in dieser Woche unzureichende Kapazitätskontingente für die benötigten TEU.',
+      noVoyage: 'Keine Seereise im ETD-Fenster CRD+12d bis CRD+20d mit ETA ≤ LDD gefunden.',
+      voyageTie: 'Nach Sortierung in Schritt 4 haben Rang-1 und Rang-2 identische ETD und ETA. Eindeutig beste kann nicht automatisch ausgewählt werden.',
+      noSpace: 'Alle Kandidaten-Reedereien haben unzureichenden tatsächlichen Laderaum.',
+      batchNoVoyage: 'Keine verfügbare Reise im CRD-bis-ETD-Fenster (bei Stapelausführung festgestellt).',
+      crdLaterThanFob: 'CRD-Woche liegt nach FOB-Woche — Warenbereitstellungsdatum liegt nach dem geplanten FOB-Abfahrtstermin. Manuelle Lösung erforderlich.',
+    },
+    pagination: { perPage: '{n} / Seite', showing: '{from}–{to} von {total} anzeigen' },
+    stepTitles: { cb1: 'SRD & Genehmigung prüfen' },
+    toast: { batchStart: 'Starte Stapel-Vorab-Buchung für {n} POs…', batchDone: '✓ Stapel-Vorab-Buchung abgeschlossen ({n} POs verarbeitet)', singleDone: '✓ {po} erfolgreich vorab-gebucht', singleOnHold: '⏸ {po} — zurückgestellt (CRD zu früh)', singleException: '⚠ {po} — Ausnahme bei Schritt {n}', noEligible: 'Keine zulässigen POs zur Ausführung', resolveSuccess: '✓ {po} gelöst und in die Vorab-Buchungsliste verschoben' },
+    user: { name: 'z.dorothy', email: 'z.dorothy@moovlogistics.com' },
+    misc: { langLabel: 'DE' }
   }
 };
 

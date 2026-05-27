@@ -6,14 +6,14 @@ import { IconShip, IconDatabase, IconAlert, IconInbox, IconBell, IconChat, IconG
 interface TopNavProps {
   lang: Lang;
   counts: { exception: number };
-  toggleLang: () => void;
+  setLang: (lang: Lang) => void;
   activeTab: 'preassign' | 'allocation' | 'booking';
   setActiveTab: (tab: 'preassign' | 'allocation' | 'booking') => void;
   activeSubTab: 'all' | 'exception';
   setActiveSubTab: (tab: 'all' | 'exception') => void;
 }
 
-export function TopNav({ lang, counts, toggleLang, activeTab, setActiveTab, activeSubTab, setActiveSubTab }: TopNavProps) {
+export function TopNav({ lang, counts, setLang, activeTab, setActiveTab, activeSubTab, setActiveSubTab }: TopNavProps) {
   const [expandedTab, setExpandedTab] = useState<'preassign' | 'booking' | null>(null);
   const navRef = useRef<HTMLElement>(null);
 
@@ -121,9 +121,18 @@ export function TopNav({ lang, counts, toggleLang, activeTab, setActiveTab, acti
       </div>
       <div className="topnav-right">
         {/* Notifications and Messages — hidden until implemented */}
-        <button className="lang-switcher" onClick={toggleLang}>
-          <IconGlobe /> {t(lang, 'misc.langLabel')}
-        </button>
+        <div className="lang-switcher" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <IconGlobe />
+          <select
+            value={lang}
+            onChange={e => setLang(e.target.value as Lang)}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none', appearance: 'none', WebkitAppearance: 'none', paddingRight: 2 }}
+          >
+            <option value="en">English (EN)</option>
+            <option value="zh">中文 (ZH)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
+        </div>
         <div className="topnav-divider"></div>
         <div className="topnav-user">
           <div className="topnav-user-text">
