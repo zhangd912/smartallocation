@@ -549,8 +549,10 @@ export function AllocationManagement({
 
         type CellData = ReturnType<typeof getWeekData>;
 
-        const mkTooltip = (label: string, d: CellData) =>
-          `${label}\n──────────────────────\nInitial quota     ${d.initial} TEU\nCarrier Booking   ${d.booked} TEU\nAvailable         ${d.hardAvailable} TEU\nPre-assign        ${d.preassign} TEU\nPre-assign Avail  ${d.preassignAvail} TEU${d.isOvercommit ? '  ⚠ Overcommit' : ''}`;
+        const mkTooltip = (label: string, d: CellData) => {
+          const used = d.preassign + d.booked;
+          return `${label}\n──────────────────────\nInitial quota     ${d.initial} TEU\nPre-assign        ${d.preassign} TEU\nCarrier Booking   ${d.booked} TEU\nUsed (total)      ${used} TEU\nRemaining         ${d.preassignAvail} TEU${d.isOvercommit ? '  ⚠ Overcommit' : ''}`;
+        };
 
         const renderHeatCell = (d: CellData, tt: string) => {
           if (d.initial === 0) return <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>;
@@ -560,8 +562,8 @@ export function AllocationManagement({
               style={{ background: colors.bg, color: colors.text, borderRadius: 5, padding: '3px 8px', fontSize: 11, fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'default', minWidth: 70 }}
               title={tt}
             >
-              <span>{d.hardAvailable}</span>
-              <span style={{ opacity: 0.5, fontSize: 10 }}>/{d.initial}</span>
+              <span>{d.preassign + d.booked}</span>
+              <span style={{ opacity: 0.5, fontSize: 10 }}>/{d.preassignAvail}</span>
               {d.isOvercommit && <span style={{ fontSize: 9, fontWeight: 700, color: '#DC2626', marginLeft: 2 }}>⚠OC</span>}
             </div>
           );
@@ -690,13 +692,13 @@ export function AllocationManagement({
                     {viewLevel === 1 && MONTHS.map(m => (
                       <th key={m} className="text-center" style={{ minWidth: 110 }}>
                         {m}
-                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Avail / Total</div>
+                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Used / Remaining</div>
                       </th>
                     ))}
                     {viewLevel === 2 && weekOptions.map(w => (
                       <th key={w} className="text-center" style={{ minWidth: 100 }}>
                         W{w.split('/')[0]}
-                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Avail / Total</div>
+                        <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--text3)', marginTop: 2 }}>Used / Remaining</div>
                       </th>
                     ))}
                     {viewLevel === 3 && <th style={{ minWidth: 300 }}>W{filterWeek.split('/')[0]} — Allocation Detail</th>}
