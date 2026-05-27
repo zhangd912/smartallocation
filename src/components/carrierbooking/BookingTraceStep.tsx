@@ -68,9 +68,15 @@ export function BookingTraceStep({ entry, currentStep, lang }: BookingTraceStepP
           <span className="step-title">{entry.title}</span>
           <span className="step-time mono">{entry.duration}ms</span>
         </div>
-        <div className={`step-result ${resultClass}`}>
-          <strong>{resultText}:</strong> {entry.reason}
-        </div>
+        {visualState === 'running' ? (
+          <div className="step-result" style={{ color: 'var(--text3)', fontStyle: 'italic' }}>
+            {t(lang, 'step.processing')}
+          </div>
+        ) : (
+          <div className={`step-result ${resultClass}`}>
+            <strong>{resultText}:</strong> {entry.reason}
+          </div>
+        )}
         {canExpand && (
           <>
             <div

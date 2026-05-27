@@ -26,7 +26,7 @@ export const I18N = {
     status: { ASSIGNED: 'Pre-Assigned', NOT_STARTED: 'Not Started', ON_HOLD: 'On Hold', EXCEPTION: 'Exception', RUNNING: 'Running…' },
     drawer: { title: 'Pre-Assign Trace Log', lane: 'Lane', container: 'Planned TEU', crdFob: 'CRD / FOB', ldd: 'LDD', pipeline: '5-Step Execution Pipeline', progress: 'Step {current}/5 · {pct}%', completed: '5/5 · 100%' },
     step: {
-      pass: '✓ Pass', fail: '✗ Fail', skipped: '— Skipped', onHold: '⏸ On Hold', waiting: 'Waiting…',
+      pass: '✓ Pass', fail: '✗ Fail', skipped: '— Skipped', onHold: '⏸ On Hold', waiting: 'Waiting…', processing: 'Running logic check…',
       expand: 'Expand Input / Output / Rule', collapse: 'Collapse Input / Output / Rule',
       inputHeading: 'Input Parameters', outputHeading: 'Output Data', ruleHeading: 'Judgment Rule',
       titles: {
@@ -114,7 +114,7 @@ export const I18N = {
     status: { ASSIGNED: '已预排船', NOT_STARTED: '未启动', ON_HOLD: '已暂缓', EXCEPTION: '异常', RUNNING: '执行中…' },
     drawer: { title: '预排船执行日志', lane: '航线', container: '计划 TEU', crdFob: 'CRD / FOB', ldd: 'LDD', pipeline: '5 步执行流水线', progress: '步骤 {current}/5 · {pct}%', completed: '5/5 · 100%' },
     step: {
-      pass: '✓ 通过', fail: '✗ 失败', skipped: '— 跳过', onHold: '⏸ 暂缓', waiting: '等待中…',
+      pass: '✓ 通过', fail: '✗ 失败', skipped: '— 跳过', onHold: '⏸ 暂缓', waiting: '等待中…', processing: '逻辑判断中…',
       expand: '展开输入 / 输出 / 判断规则', collapse: '收起输入 / 输出 / 判断规则',
       inputHeading: '输入参数', outputHeading: '输出数据', ruleHeading: '判断规则',
       titles: {
